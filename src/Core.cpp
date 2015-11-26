@@ -92,16 +92,6 @@ Core::setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lo
 }
 
 void
-Core::getLocations(void)
-{
-	this->positionLoc = glGetAttribLocation(this->program, "position");
-	this->projLoc = glGetUniformLocation(this->program, "proj_matrix");
-	this->viewLoc = glGetUniformLocation(this->program, "view_matrix");
-	this->colorLoc = glGetUniformLocation(this->program, "frag_color");
-	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
-}
-
-void
 Core::resetParticles(void)
 {
 	int				i;
@@ -177,6 +167,16 @@ Core::createSphere(void)
 	return (1);
 }
 
+void
+Core::getLocations(void)
+{
+	this->positionLoc = glGetAttribLocation(this->program, "position");
+	this->projLoc = glGetUniformLocation(this->program, "proj_matrix");
+	this->viewLoc = glGetUniformLocation(this->program, "view_matrix");
+	this->colorLoc = glGetUniformLocation(this->program, "frag_color");
+	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
+}
+
 int
 Core::init(void)
 {
@@ -202,22 +202,30 @@ Core::init(void)
 	glfwSetKeyCallback(this->window, key_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
-	this->getLocations();
 	this->buildProjectionMatrix(this->projMatrix, 53.13f, 0.1f, 1000.0f);
 	this->cameraPos.set(0.5f, 0.3f, 1.5f);
 	// this->cameraPos.set(5.5f, 5.5f, 5.5f);
 	this->cameraLookAt.set(0.5f, 0.4f, 0.5f);
-
+	this->setCamera(this->viewMatrix, this->cameraPos, this->cameraLookAt);
+	if (!this->initShaders())
+		return (0);
+	this->getLocations();
+	checkGlError(__FILE__, __LINE__);
 	this->particles = new t_particle[PARTICLE_NUMBER];
 	std::cerr << glGetString(GL_VERSION) << std::endl;
 	this->resetParticles();
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), this->particles); //float position[3]
+	/*glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), this->particles); //float position[3]
 	checkGlError(__FILE__, __LINE__);
 	glEnableVertexAttribArray(0);
-	checkGlError(__FILE__, __LINE__);
-	if (!this->initShaders())
-		return (0);
-	checkGlError(__FILE__, __LINE__);
+	checkGlError(__FILE__, __LINE__);*/
+
+	glGenVertexArrays(1, &pVao);
+	glBindVertexArray(pVao);
+	glGenBuffers(1, &pVbo);
+	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, this->particles, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(positionLoc);
+	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
 	return (1);
 }
 
@@ -334,16 +342,21 @@ Core::update(void)
 void
 Core::render(void)
 {
-	glUseProgram(this->program);
-	glUniformMatrix4fv(this->projLoc, 1, GL_FALSE, this->projMatrix.val);
-	glUniformMatrix4fv(this->viewLoc, 1, GL_FALSE, this->viewMatrix.val);
+	glUseProgram(program);
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
+	ms.push();
+		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
+		glBindVertexArray(pVao);
+		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+	ms.pop();
 	checkGlError(__FILE__, __LINE__);
 }
 
 void
 Core::loop(void)
 {
-	while (!glfwWindowShouldClose(this->window))
+	while (!glfwWindowShouldClose(window))
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		this->update();

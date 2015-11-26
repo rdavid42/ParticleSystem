@@ -59,6 +59,9 @@ public:
 	GLuint					positionLoc;
 	GLuint					colorLoc;
 
+	GLuint					pVao;
+	GLuint					pVbo;
+
 	Core(void);
 	~Core(void);
 
