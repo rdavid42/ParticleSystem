@@ -1,0 +1,15 @@
+#version 410
+
+struct particle
+{
+	float		pos[3];
+	float		vel[3];
+	float		acc[3];
+};
+
+
+
+void main()
+{
+
+}
