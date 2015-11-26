@@ -9,7 +9,7 @@ OBJS		=	$(patsubst %.cpp, $(OBJ_PATH)%.o,$(SRCS))
 
 PLATFORM	:=	$(shell uname)
 CC			=	g++
-HEADER		=	-I./$(INC_PATH) -I./glfw/include
+HEADER		=	-I./$(INC_PATH) -I./glfw/include -I/usr/local/cuda-6.5/include
 FLAGS		=	-g -O3 -Wall -Wextra -Werror -std=gnu++11
 VARS		=	\
 # -DDEBUG \
@@ -17,10 +17,10 @@ VARS		=	\
 
 ifeq "$(PLATFORM)" "Darwin" #MAC
 GLFW		=	./glfw/libglfw3_darwin.a
-LIBS		=	$(GLFW) -lm -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -lpthread
+LIBS		=	$(GLFW) -lm -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -lpthread -framework OpenCL
 else ifeq "$(PLATFORM)" "Linux" #LINUX
 GLFW		=	./glfw/libglfw3_linux.a
-LIBS		=	$(GLFW) -lGL -lXrandr -lXi -lXrender -ldrm -lXdamage -lXxf86vm -lXext -lX11 -lpthread -lXcursor -lm -lXinerama `libpng-config --libs` -lpthread
+LIBS		=	$(GLFW) -lGL -lXrandr -lXi -lXrender -ldrm -lXdamage -lXxf86vm -lXext -lX11 -lpthread -lXcursor -lm -lXinerama `libpng-config --libs` -lOpenCL -L/usr/local/cuda-6.5/lib64
 else ifeq "$(PLATFORM)" "Win32" #WINDOWS
 GLFW		=	./glfw/libglfw3_win32.a
 LIBS		=	$(GLFW) -lopengl32 -lgdi32 -luser32 -lkernel32 -lpthread

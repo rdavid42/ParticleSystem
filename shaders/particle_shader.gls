@@ -1,13 +1,13 @@
 #version 410
 
-struct particle
+struct s_particle
 {
 	float		pos[3];
 	float		vel[3];
 	float		acc[3];
 };
 
-
+layout(location = 0) in s_particle	particle;
 
 void main()
 {
