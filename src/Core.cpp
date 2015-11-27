@@ -171,7 +171,6 @@ Core::initOpencl(void)
 cl_int
 Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
-	clock_t			startTime;
 	cl_int			err;
 
 	err = clSetKernelArg(this->clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &this->dp);
@@ -185,18 +184,17 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
 	clFinish(this->clCommands);
-	startTime = clock();
+/*	clock_t startTime = clock();
 	err = clEnqueueReadBuffer(this->clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to read buffer !", EXIT_FAILURE));
-	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";
+	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";*/
 	return (CL_SUCCESS);
 }
 
 cl_int
 Core::launchKernelsUpdate(void)
 {
-	clock_t			startTime;
 	cl_int			err;
 
 	err = clSetKernelArg(this->clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &this->dp);
@@ -206,27 +204,50 @@ Core::launchKernelsUpdate(void)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
 	clFinish(this->clCommands);
-	startTime = clock();
+/*	clock_t startTime = clock();
 	err = clEnqueueReadBuffer(this->clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to read buffer !", EXIT_FAILURE));
-	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";
+	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";*/
 	return (CL_SUCCESS);
 }
-
 
 cl_int
 Core::initParticles(void)
 {
+	t_particle		*hp; // host temporary particles
 	cl_int			err;
 
+	std::cerr << "1" << std::endl;
 	std::cerr << glGetString(GL_VERSION) << std::endl;
-	this->hp = new t_particle[PARTICLE_NUMBER];
-	// this->dp = clCreateBuffer(this->clContext, CL_MEM_READ_WRITE, sizeof(t_particle) * PARTICLE_NUMBER, NULL, &err);
-	this->dp = clCreateBuffer(this->clContext, CL_MEM_USE_HOST_PTR, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, &err);
+	std::cerr << "2" << std::endl;
+	hp = new t_particle[PARTICLE_NUMBER];
+	std::cerr << "3" << std::endl;
+	resetParticles(hp);
+	std::cerr << "4" << std::endl;
+	createSphere(hp);
+	// OPENGL VAO/VBO INITIALISATION
+	std::cerr << "5" << std::endl;
+	glGenVertexArrays(1, &pVao);
+	std::cerr << "6" << std::endl;
+	glBindVertexArray(pVao);
+	std::cerr << "7" << std::endl;
+	glGenBuffers(1, &pVbo);
+	std::cerr << "8" << std::endl;
+	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+	std::cerr << "9" << std::endl;
+	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, hp, GL_STATIC_DRAW);
+	std::cerr << "10" << std::endl;
+	glEnableVertexAttribArray(positionLoc);
+	std::cerr << "11" << std::endl;
+	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
+	// OPENCL INTEROPERABILITY
+	std::cerr << "12" << std::endl;
+	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
+	std::cerr << "13" << std::endl;
 	if (err != CL_SUCCESS)
-		return (printError("Could not allocate particles device memory !", EXIT_FAILURE));
-	this->resetParticles();
+		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
+	delete [] hp;
 	return (CL_SUCCESS);
 }
 
@@ -256,7 +277,7 @@ Core::cleanDeviceMemory(void)
 		return (printError("Error: Failed to release context !", EXIT_FAILURE));
 	return (CL_SUCCESS);
 }
-
+/*
 cl_int
 Core::writeDeviceParticles(void)
 {
@@ -267,23 +288,23 @@ Core::writeDeviceParticles(void)
 		return (printError("Error: Failed to write to source array !", EXIT_FAILURE));
 	return (CL_SUCCESS);
 }
-
+*/
 void
-Core::resetParticles(void)
+Core::resetParticles(t_particle *hp)
 {
 	int				i;
 
 	for (i = 0; i < PARTICLE_NUMBER; ++i)
 	{
-		this->hp[i].pos[0] = 0;
-		this->hp[i].pos[1] = 0;
-		this->hp[i].pos[2] = 0;
-		this->hp[i].vel[0] = 0;
-		this->hp[i].vel[1] = 0;
-		this->hp[i].vel[2] = 0;
-		this->hp[i].acc[0] = 0;
-		this->hp[i].acc[1] = 0;
-		this->hp[i].acc[2] = 0;
+		hp[i].pos[0] = 0;
+		hp[i].pos[1] = 0;
+		hp[i].pos[2] = 0;
+		hp[i].vel[0] = 0;
+		hp[i].vel[1] = 0;
+		hp[i].vel[2] = 0;
+		hp[i].acc[0] = 0;
+		hp[i].acc[1] = 0;
+		hp[i].acc[2] = 0;
 	}
 }
 
@@ -302,7 +323,7 @@ Core::initParticle(t_particle *p, float &x, float &y, float &z)
 }
 
 int
-Core::createSphere(void)
+Core::createSphere(t_particle *hp)
 {
 	float					x;
 	float					y;
@@ -328,7 +349,7 @@ Core::createSphere(void)
 				{
 					if (x * x + y * y + z * z <= m * m)
 					{
-						this->initParticle(&this->hp[i], x, y, z);
+						this->initParticle(&hp[i], x, y, z);
 						++i;
 					}
 				}
@@ -357,8 +378,6 @@ Core::getLocations(void)
 int
 Core::init(void)
 {
-	if (initOpencl() == EXIT_FAILURE)
-		return (0);
 	this->windowWidth = 1280;
 	this->windowHeight = 1280;
 	if (!glfwInit())
@@ -385,27 +404,24 @@ Core::init(void)
 	// this->cameraPos.set(5.5f, 5.5f, 5.5f);
 	this->cameraLookAt.set(0.0f, 0.0f, 0.0f);
 	this->setCamera(this->viewMatrix, this->cameraPos, this->cameraLookAt);
+	if (initOpencl() == EXIT_FAILURE)
+		return (0);
 	if (!this->initShaders())
 		return (0);
 	this->getLocations();
-	this->hp = new t_particle[PARTICLE_NUMBER];
+	if (!this->initParticles())
+		return (0);
+/*	this->hp = new t_particle[PARTICLE_NUMBER];
 	std::cerr << glGetString(GL_VERSION) << std::endl;
 	this->resetParticles();
-	this->createSphere();
+	this->createSphere();*/
 /*
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), this->hp); //float position[3]
 	checkGlError(__FILE__, __LINE__);
 	glEnableVertexAttribArray(0);
 	checkGlError(__FILE__, __LINE__);
 */
-	glGenVertexArrays(1, &pVao);
-	glBindVertexArray(pVao);
-	glGenBuffers(1, &pVbo);
-	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(positionLoc);
-	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
-	delete [] this->hp;
+	// delete [] this->hp;
 	return (1);
 }
 

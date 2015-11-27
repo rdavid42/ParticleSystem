@@ -41,11 +41,11 @@ typedef struct		s_particle
 class Core
 {
 public:
-	t_particle				*hp;
 	cl_mem					dp; // device particles
+
+	// OpenCL
 	size_t					local[N_PROGRAM];
 	size_t					global;
-	// OpenCL
 	cl_uint					num_entries;
 	cl_platform_id			platformID;
 	cl_uint					num_platforms;
@@ -94,10 +94,10 @@ public:
 	void					render(void);
 	void					loop(void);
 	
-	/* particles */
-	void					resetParticles(void);
+	/* cpu temporary particles */
+	void					resetParticles(t_particle *hp);
 	void					initParticle(t_particle *p, float &x, float &y, float &z);
-	int						createSphere(void);
+	int						createSphere(t_particle *hp);
 
 	/* matrices */ 
 	void					setViewMatrix(Mat4<float> &view, Vec3<float> const &dir,
@@ -120,7 +120,7 @@ public:
 	cl_int					launchKernelsUpdate(void);
 	cl_int					initParticles(void);
 	cl_int					cleanDeviceMemory(void);
-	cl_int					writeDeviceParticles(void);
+/*	cl_int					writeDeviceParticles(void);*/
 
 	Core &					operator=(Core const &rhs);
 
