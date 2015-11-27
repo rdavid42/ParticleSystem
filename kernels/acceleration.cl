@@ -13,9 +13,9 @@ __kernel void acceleration(__global t_particle *p, int const state, float const 
 	p[i].acc[0] /= h;
 	p[i].acc[1] /= h;
 	p[i].acc[2] /= h;
-	p[i].acc[0] /= 6 * state;
-	p[i].acc[1] /= 6 * state;
-	p[i].acc[2] /= 6 * state;
+	p[i].acc[0] /= 2 / state;
+	p[i].acc[1] /= 2 / state;
+	p[i].acc[2] /= 2 / state;
 	//UPDATE
 	p[i].vel[0] += p[i].acc[0];
 	p[i].vel[1] += p[i].acc[1];

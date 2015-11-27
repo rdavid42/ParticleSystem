@@ -23,6 +23,28 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
 		core->launchKernelsAcceleration(-1, core->magnet);
+	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
+		core->launchKernelsAcceleration(1, core->magnet);
+	if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+		core->launchKernelsAcceleration(1, core->magnet);
+
+}
+
+
+static void
+cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	Core		*core = static_cast<Core *>(glfwGetWindowUserPointer(window));
+	
+	core->moveMagnet(xpos, ypos);
+}
+
+
+void
+Core::moveMagnet(double xpos, double ypos)
+{
+	magnet.x =  ((xpos / windowWidth)  * 100 - 50); //100 = position Z caméra et 50 = position Z cam / 2
+	magnet.y = -((ypos / windowHeight) * 100 - 50);
 }
 
 void
@@ -391,6 +413,7 @@ Core::getLocations(void)
 	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
 }
 
+
 void
 Core::magnetInit(void)
 {
@@ -421,10 +444,11 @@ Core::init(void)
 	glfwMakeContextCurrent(window); // make the opengl context of the window current on the main thread
 	glfwSwapInterval(1); // VSYNC 60 fps max
 	glfwSetKeyCallback(window, key_callback);
+	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
-	cameraPos.set(100.0f, 100.0f, 100.0f);
+	cameraPos.set(0.0f, 0.0f, 100.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
 	cameraLookAt.set(0.0f, 0.0f, 0.0f);
 	setCamera(viewMatrix, cameraPos, cameraLookAt);
