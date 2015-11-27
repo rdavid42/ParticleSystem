@@ -221,29 +221,25 @@ Core::initOpencl(void)
 cl_int
 Core::initParticles(void)
 {
-	t_particle		*hp; // host temporary particles
 	cl_int			err;
 
-	hp = new t_particle[PARTICLE_NUMBER];
-	resetParticles(hp);
-	createSphere(hp);
 	// OPENGL VAO/VBO INITIALISATION
 	glGenVertexArrays(1, &pVao);
 	glBindVertexArray(pVao);
 	glGenBuffers(1, &pVbo);
 	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, hp, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, 0, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(positionLoc);
 	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
 	// OPENCL INTEROPERABILITY
 	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
 	if (err != CL_SUCCESS)
 		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
-	delete [] hp;
 	// glFinish();
 	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
+	launchKernelsReset();
 	return (CL_SUCCESS);
 }
 
@@ -270,10 +266,6 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
 
-	// glFinish();
-/*	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));*/
 	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
@@ -284,9 +276,6 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &this->local[ACCELERATION_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
-/*	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));*/
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
@@ -296,19 +285,12 @@ Core::launchKernelsUpdate(void)
 {
 	cl_int			err;
 
-	// glFinish();
-/*	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));*/
 	err = clSetKernelArg(clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &dp);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
-/*	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));*/
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
@@ -341,83 +323,6 @@ Core::cleanDeviceMemory(void)
 }
 
 void
-Core::resetParticles(t_particle *hp)
-{
-	int				i;
-
-	for (i = 0; i < PARTICLE_NUMBER; ++i)
-	{
-		hp[i].pos[0] = 0;
-		hp[i].pos[1] = 0;
-		hp[i].pos[2] = 0;
-		hp[i].vel[0] = 0;
-		hp[i].vel[1] = 0;
-		hp[i].vel[2] = 0;
-		hp[i].acc[0] = 0;
-		hp[i].acc[1] = 0;
-		hp[i].acc[2] = 0;
-	}
-}
-
-void
-Core::initParticle(t_particle *p, float &x, float &y, float &z)
-{
-	p->pos[0] = x;
-	p->pos[1] = y;
-	p->pos[2] = z;
-	p->vel[0] = 0;
-	p->vel[1] = 0;
-	p->vel[2] = 0;
-	p->acc[0] = 0;
-	p->acc[1] = 0;
-	p->acc[2] = 0;
-}
-
-
-int
-Core::createSphere(t_particle *hp)
-{
-	float					x;
-	float					y;
-	float					z;
-	// Vec3<float>				camPos(0.0f, 0.0f, 90.0f);
-	int						i;
-	int						j;
-	static int const		m = std::cbrt(PARTICLE_NUMBER) / 2;
-	static double const		inc = 0.8;
-
-	i = 0;
-	j = 0;
-	y = -m;
-	while (y < m)
-	{
-		z = -m;
-		while (z < m)
-		{
-			x = -m;
-			while (x < m)
-			{
-				if (i < PARTICLE_NUMBER)
-				{
-					if (x * x + y * y + z * z <= m * m)
-					{
-						this->initParticle(&hp[i], x, y, z);
-						++i;
-					}
-				}
-				else
-					break ;
-				x += inc;
-			}
-			z += inc;
-		}
-		y += inc;
-	}
-	// this->camera->setPosition(camPos);
-	return (1);
-}
-
-void
 Core::getLocations(void)
 {
 	this->positionLoc = glGetAttribLocation(this->program, "position");
@@ -426,7 +331,6 @@ Core::getLocations(void)
 	this->colorLoc = glGetUniformLocation(this->program, "frag_color");
 	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
 }
-
 
 void
 Core::magnetInit(void)
