@@ -203,11 +203,6 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
-/*	clock_t startTime = clock();
-	err = clEnqueueReadBuffer(this->clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to read buffer !", EXIT_FAILURE));
-	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";*/
 	return (CL_SUCCESS);
 }
 
@@ -233,11 +228,6 @@ Core::launchKernelsUpdate(void)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
-/*	clock_t startTime = clock();
-	err = clEnqueueReadBuffer(clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to read buffer !", EXIT_FAILURE));
-	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";*/
 	return (CL_SUCCESS);
 }
 
@@ -423,6 +413,7 @@ Core::init(void)
 	glfwSetKeyCallback(window, key_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
+
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
 	cameraPos.set(100.0f, 100.0f, 100.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
@@ -435,7 +426,6 @@ Core::init(void)
 	getLocations();
 	if (initParticles() != CL_SUCCESS)
 		return (0);
-
 	magnetInit();
 	return (1);
 }
@@ -564,12 +554,25 @@ Core::render(void)
 void
 Core::loop(void)
 {
+	double		lastTime, currentTime;
+	double		frames;
+
+	frames = 0.0;
+	lastTime = glfwGetTime();
 	while (!glfwWindowShouldClose(window))
 	{
+		currentTime = glfwGetTime();
+		frames += 1.0;
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		this->update();
 		this->render();
 		glfwSwapBuffers(this->window);
 		glfwPollEvents();
+		if (currentTime - lastTime >= 1.0)
+		{
+			glfwSetWindowTitle(window, std::to_string(1000.0 / frames).c_str());
+			frames = 0.0;
+			lastTime += 1.0;
+		}
 	}
 }
