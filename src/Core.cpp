@@ -172,6 +172,7 @@ Core::initOpencl(void)
 		(cl_context_properties)this->platformID,
 		0
 	};
+
 	this->clContext = clCreateContext(props, 1, &this->clDeviceId, 0, 0, &err);
 	if (!this->clContext || err != CL_SUCCESS)
 		return (printError("Error: Failed to create a compute context !", EXIT_FAILURE));
@@ -365,7 +366,6 @@ Core::init(void)
 	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
-
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
 	cameraPos.set(0.0f, 0.0f, 200.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
