@@ -1,6 +1,6 @@
 #include <kernel_particle.h>
 
-__kernel void makeCube(__global t_particle *p, int const m,  int const num)
+__kernel void makeCube(__global t_particle *p, int const m)
 {
 	int		i = get_global_id(0);
 	int x, y, z, w;

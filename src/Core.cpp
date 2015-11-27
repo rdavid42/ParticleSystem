@@ -216,35 +216,6 @@ Core::initOpencl(void)
 }
 
 cl_int
-Core::launchKernelsReset(void)
-{
-	cl_int		err;
-	int			num = PARTICLE_NUMBER;
-	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
-
-	std::cerr << m << std::endl;
-	std::cerr << num << std::endl;
-	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to acquire GL Objects!", EXIT_FAILURE));
-	err = clSetKernelArg(clKernels[MAKECUBE_KERNEL], 0, sizeof(cl_mem), &dp);
-	err |= clSetKernelArg(clKernels[MAKECUBE_KERNEL], 1, sizeof(int), &m);
-	err |= clSetKernelArg(clKernels[MAKECUBE_KERNEL], 2, sizeof(float), &num);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKECUBE_KERNEL], 1, 0, &global, &this->local[MAKECUBE_KERNEL], 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
-	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
-	clFinish(clCommands);
-	std::cerr << "awd" << std::endl;
-	return (CL_SUCCESS);
-
-}
-
-cl_int
 Core::initParticles(void)
 {
 	t_particle		*hp; // host temporary particles
@@ -272,6 +243,24 @@ Core::initParticles(void)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	return (CL_SUCCESS);
+}
+
+cl_int
+Core::launchKernelsReset(void)
+{
+	cl_int		err;
+	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
+
+	err = clSetKernelArg(clKernels[MAKECUBE_KERNEL], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[MAKECUBE_KERNEL], 1, sizeof(int), &m);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKECUBE_KERNEL], 1, 0, &global, &this->local[MAKECUBE_KERNEL], 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+	clFinish(clCommands);
+	return (CL_SUCCESS);
+
 }
 
 cl_int
