@@ -26,14 +26,13 @@
 # include "Mat4.hpp"
 # include "Mat4Stack.hpp"
 # include "Utils.hpp"
-# include "Font.hpp"
 # include "kernel_particle.h"
 
 # define		ACCELERATION_KERNEL		0
 # define		UPDATE_KERNEL			1
 
 # define		N_PROGRAM				2
-# define		PARTICLE_NUMBER			1024000 * 1
+# define		PARTICLE_NUMBER			1024000 * 3
 
 class Core
 {
@@ -83,6 +82,10 @@ public:
 	GLuint					pVbo;
 
 	Vec3<float>				magnet;
+	double					particleSize;
+	double					particleSizeInc;
+	double					particleSizeMin;
+	double					particleSizeMax;
 
 	Core(void);
 	~Core(void);
@@ -98,6 +101,10 @@ public:
 	void					resetParticles(t_particle *hp);
 	void					initParticle(t_particle *p, float &x, float &y, float &z);
 	int						createSphere(t_particle *hp);
+
+	/* magnet */
+	void					 moveMagnet(double xpos, double ypos);
+
 
 	/* matrices */ 
 	void					setViewMatrix(Mat4<float> &view, Vec3<float> const &dir,

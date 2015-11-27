@@ -23,6 +23,39 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
 		core->launchKernelsAcceleration(-1, core->magnet);
+	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
+		core->launchKernelsAcceleration(1, core->magnet);
+	if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
+	{
+		core->particleSize += core->particleSizeInc;
+		if (core->particleSize > core->particleSizeMax)
+			core->particleSize = core->particleSizeMax;
+		glPointSize(core->particleSize);
+	}
+	if (key == GLFW_KEY_KP_SUBTRACT && action == GLFW_PRESS)
+	{
+		core->particleSize -= core->particleSizeInc;
+		if (core->particleSize < core->particleSizeMin)
+			core->particleSize = core->particleSizeMin;
+		glPointSize(core->particleSize);
+	}
+}
+
+
+static void
+cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	Core		*core = static_cast<Core *>(glfwGetWindowUserPointer(window));
+	
+	core->moveMagnet(xpos, ypos);
+}
+
+
+void
+Core::moveMagnet(double xpos, double ypos)
+{
+	magnet.x =  ((xpos / windowWidth)  * 100 - 50); //100 = position Z caméra et 50 = position Z cam / 2
+	magnet.y = -((ypos / windowHeight) * 100 - 50);
 }
 
 void
@@ -181,57 +214,6 @@ Core::initOpencl(void)
 }
 
 cl_int
-Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
-{
-	cl_int			err;
-
-	glFinish();
-	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
-	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 3, sizeof(float), &pos.y);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 4, sizeof(float), &pos.z);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &this->local[ACCELERATION_KERNEL], 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
-	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
-	clFinish(clCommands);
-	return (CL_SUCCESS);
-}
-
-cl_int
-Core::launchKernelsUpdate(void)
-{
-	cl_int			err;
-
-	glFinish();
-	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
-	err = clSetKernelArg(clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &dp);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
-	if (err != CL_SUCCESS)
-	{
-		std::cerr << "Error code: " << err << std::endl;
-		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
-	}
-	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
-	clFinish(clCommands);
-	return (CL_SUCCESS);
-}
-
-cl_int
 Core::initParticles(void)
 {
 	t_particle		*hp; // host temporary particles
@@ -254,6 +236,61 @@ Core::initParticles(void)
 		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
 	delete [] hp;
 	std::cerr << CL_SUCCESS << std::endl;
+	// glFinish();
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
+	return (CL_SUCCESS);
+}
+
+cl_int
+Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
+{
+	cl_int			err;
+
+	// glFinish();
+/*	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));*/
+	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 3, sizeof(float), &pos.y);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 4, sizeof(float), &pos.z);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &this->local[ACCELERATION_KERNEL], 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+/*	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));*/
+	clFinish(clCommands);
+	return (CL_SUCCESS);
+}
+
+cl_int
+Core::launchKernelsUpdate(void)
+{
+	cl_int			err;
+
+	// glFinish();
+/*	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));*/
+	err = clSetKernelArg(clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &dp);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
+	if (err != CL_SUCCESS)
+	{
+		std::cerr << "Error code: " << err << std::endl;
+		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
+	}
+/*	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));*/
+	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
 
@@ -381,6 +418,7 @@ Core::getLocations(void)
 	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
 }
 
+
 void
 Core::magnetInit(void)
 {
@@ -411,11 +449,12 @@ Core::init(void)
 	glfwMakeContextCurrent(window); // make the opengl context of the window current on the main thread
 	glfwSwapInterval(1); // VSYNC 60 fps max
 	glfwSetKeyCallback(window, key_callback);
+	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
 
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
-	cameraPos.set(100.0f, 100.0f, 100.0f);
+	cameraPos.set(0.0f, 0.0f, 100.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
 	cameraLookAt.set(0.0f, 0.0f, 0.0f);
 	setCamera(viewMatrix, cameraPos, cameraLookAt);
@@ -427,6 +466,11 @@ Core::init(void)
 	if (initParticles() != CL_SUCCESS)
 		return (0);
 	magnetInit();
+	particleSize = 1.0;
+	particleSizeInc = 1.0;
+	particleSizeMin = 1.0;
+	particleSizeMax = 5.0;
+	glPointSize(particleSize);
 	return (1);
 }
 
@@ -533,7 +577,12 @@ Core::initShaders(void)
 void
 Core::update(void)
 {
-	launchKernelsUpdate();
+
+ 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		launchKernelsAcceleration(1, magnet);
+	else
+		launchKernelsUpdate();
+
 }
 
 void
