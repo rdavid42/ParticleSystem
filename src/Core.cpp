@@ -21,6 +21,8 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	(void)core;
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
+	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+		core->launchKernelsAcceleration(-1, core->magnet);
 }
 
 void
@@ -122,7 +124,17 @@ Core::initOpencl(void)
 	if (err != CL_SUCCESS)
 		return (printError(std::ostringstream().flush() << "Error: Failed to create a device group ! " << err, EXIT_FAILURE));
 
-	this->clContext = clCreateContext(0, 1, &this->clDeviceId, 0, 0, &err);
+	CGLContextObj			kCGLContext = CGLGetCurrentContext();
+	CGLShareGroupObj		kCGLShareGroup = CGLGetShareGroup(kCGLContext);
+	cl_context_properties	props[] =
+	{
+		CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
+		(cl_context_properties)kCGLShareGroup,
+		CL_CONTEXT_PLATFORM,
+		(cl_context_properties)this->platformID,
+		0
+	};
+	this->clContext = clCreateContext(props, 1, &this->clDeviceId, 0, 0, &err);
 	if (!this->clContext || err != CL_SUCCESS)
 		return (printError("Error: Failed to create a compute context !", EXIT_FAILURE));
 
@@ -173,17 +185,24 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
 
-	err = clSetKernelArg(this->clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &this->dp);
-	err |= clSetKernelArg(this->clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
-	err |= clSetKernelArg(this->clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
-	err |= clSetKernelArg(this->clKernels[ACCELERATION_KERNEL], 3, sizeof(float), &pos.y);
-	err |= clSetKernelArg(this->clKernels[ACCELERATION_KERNEL], 4, sizeof(float), &pos.z);
+	glFinish();
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
+	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 3, sizeof(float), &pos.y);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 4, sizeof(float), &pos.z);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(this->clCommands, this->clKernels[ACCELERATION_KERNEL], 1, NULL, &global, &this->local[ACCELERATION_KERNEL], 0, NULL, NULL);
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &this->local[ACCELERATION_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
-	clFinish(this->clCommands);
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
+	clFinish(clCommands);
 /*	clock_t startTime = clock();
 	err = clEnqueueReadBuffer(this->clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
@@ -197,15 +216,25 @@ Core::launchKernelsUpdate(void)
 {
 	cl_int			err;
 
-	err = clSetKernelArg(this->clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &this->dp);
+	glFinish();
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
+	err = clSetKernelArg(clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &dp);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(this->clCommands, this->clKernels[UPDATE_KERNEL], 1, NULL, &global, &this->local[UPDATE_KERNEL], 0, NULL, NULL);
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
+	{
+		std::cerr << "Error code: " << err << std::endl;
 		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
-	clFinish(this->clCommands);
+	}
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
+	clFinish(clCommands);
 /*	clock_t startTime = clock();
-	err = clEnqueueReadBuffer(this->clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
+	err = clEnqueueReadBuffer(clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to read buffer !", EXIT_FAILURE));
 	oss_ticks << "copy: " << (double)(clock() - startTime) << " - ";*/
@@ -218,36 +247,23 @@ Core::initParticles(void)
 	t_particle		*hp; // host temporary particles
 	cl_int			err;
 
-	std::cerr << "1" << std::endl;
-	std::cerr << glGetString(GL_VERSION) << std::endl;
-	std::cerr << "2" << std::endl;
 	hp = new t_particle[PARTICLE_NUMBER];
-	std::cerr << "3" << std::endl;
 	resetParticles(hp);
-	std::cerr << "4" << std::endl;
 	createSphere(hp);
 	// OPENGL VAO/VBO INITIALISATION
-	std::cerr << "5" << std::endl;
 	glGenVertexArrays(1, &pVao);
-	std::cerr << "6" << std::endl;
 	glBindVertexArray(pVao);
-	std::cerr << "7" << std::endl;
 	glGenBuffers(1, &pVbo);
-	std::cerr << "8" << std::endl;
 	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-	std::cerr << "9" << std::endl;
 	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, hp, GL_STATIC_DRAW);
-	std::cerr << "10" << std::endl;
 	glEnableVertexAttribArray(positionLoc);
-	std::cerr << "11" << std::endl;
 	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
 	// OPENCL INTEROPERABILITY
-	std::cerr << "12" << std::endl;
 	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
-	std::cerr << "13" << std::endl;
 	if (err != CL_SUCCESS)
 		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
 	delete [] hp;
+	std::cerr << CL_SUCCESS << std::endl;
 	return (CL_SUCCESS);
 }
 
@@ -375,53 +391,52 @@ Core::getLocations(void)
 	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
 }
 
+void
+Core::magnetInit(void)
+{
+	magnet.x = 0;
+	magnet.y = 0;
+	magnet.z = 0;
+}
+
 int
 Core::init(void)
 {
-	this->windowWidth = 1280;
-	this->windowHeight = 1280;
+	windowWidth = 1280;
+	windowHeight = 1280;
 	if (!glfwInit())
 		return (0);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	this->window = glfwCreateWindow(this->windowWidth, this->windowHeight,
+	window = glfwCreateWindow(windowWidth, windowHeight,
 									"Particle System", NULL, NULL);
-	if (!this->window)
+	if (!window)
 	{
 		glfwTerminate();
 		return (0);
 	}
-	glfwSetWindowUserPointer(this->window, this);
-	glfwMakeContextCurrent(this->window); // make the opengl context of the window current on the main thread
+	glfwSetWindowUserPointer(window, this);
+	glfwMakeContextCurrent(window); // make the opengl context of the window current on the main thread
 	glfwSwapInterval(1); // VSYNC 60 fps max
-	glfwSetKeyCallback(this->window, key_callback);
+	glfwSetKeyCallback(window, key_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
-	this->buildProjectionMatrix(this->projMatrix, 53.13f, 0.1f, 1000.0f);
-	this->cameraPos.set(100.0f, 100.0f, 100.0f);
-	// this->cameraPos.set(5.5f, 5.5f, 5.5f);
-	this->cameraLookAt.set(0.0f, 0.0f, 0.0f);
-	this->setCamera(this->viewMatrix, this->cameraPos, this->cameraLookAt);
+	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
+	cameraPos.set(100.0f, 100.0f, 100.0f);
+	// cameraPos.set(5.5f, 5.5f, 5.5f);
+	cameraLookAt.set(0.0f, 0.0f, 0.0f);
+	setCamera(viewMatrix, cameraPos, cameraLookAt);
 	if (initOpencl() == EXIT_FAILURE)
 		return (0);
-	if (!this->initShaders())
+	if (!initShaders())
 		return (0);
-	this->getLocations();
-	if (!this->initParticles())
+	getLocations();
+	if (initParticles() != CL_SUCCESS)
 		return (0);
-/*	this->hp = new t_particle[PARTICLE_NUMBER];
-	std::cerr << glGetString(GL_VERSION) << std::endl;
-	this->resetParticles();
-	this->createSphere();*/
-/*
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), this->hp); //float position[3]
-	checkGlError(__FILE__, __LINE__);
-	glEnableVertexAttribArray(0);
-	checkGlError(__FILE__, __LINE__);
-*/
-	// delete [] this->hp;
+
+	magnetInit();
 	return (1);
 }
 
@@ -528,6 +543,7 @@ Core::initShaders(void)
 void
 Core::update(void)
 {
+	launchKernelsUpdate();
 }
 
 void

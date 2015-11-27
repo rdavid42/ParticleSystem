@@ -15,6 +15,8 @@
 
 # ifdef __APPLE__
 #  include <OpenCL/opencl.h>
+#  include <OpenGL/CGLTypes.h>
+#  include <OpenGL/CGLCurrent.h>
 # else
 #  define GL_GLEXT_PROTOTYPES
 #  include <CL/cl.h>
@@ -29,7 +31,7 @@
 # define		UPDATE_KERNEL			1
 
 # define		N_PROGRAM				2
-# define		PARTICLE_NUMBER		1000000
+# define		PARTICLE_NUMBER			1024000
 
 typedef struct		s_particle
 {
@@ -85,11 +87,14 @@ public:
 	GLuint					pVao;
 	GLuint					pVbo;
 
+	Vec3<float>				magnet;
+
 	Core(void);
 	~Core(void);
 
 	/* core */
 	int						init(void);
+	void					magnetInit(void);
 	void					update(void);
 	void					render(void);
 	void					loop(void);
