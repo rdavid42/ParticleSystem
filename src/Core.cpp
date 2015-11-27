@@ -141,13 +141,15 @@ Core::initOpencl(void)
 	{
 		"acceleration",
 		"update",
-		"makeCube"
+		"makeCube",
+		"makeSphere"
 	};
 	static char const			*kernelFiles[N_PROGRAM] =
 	{
 		"./kernels/acceleration.cl",
 		"./kernels/update.cl",
-		"./kernels/makeCube.cl"
+		"./kernels/makeCube.cl",
+		"./kernels/makeSphere.cl"
 	};
 	std::string					file_content;
 	char						*file_string;
@@ -253,11 +255,11 @@ Core::launchKernelsReset(void)
 	cl_int		err;
 	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
 
-	err = clSetKernelArg(clKernels[MAKECUBE_KERNEL], 0, sizeof(cl_mem), &dp);
-	err |= clSetKernelArg(clKernels[MAKECUBE_KERNEL], 1, sizeof(int), &m);
+	err = clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 1, sizeof(int), &m);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKECUBE_KERNEL], 1, 0, &global, &this->local[MAKECUBE_KERNEL], 0, 0, 0);
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKESPHERE_KERNEL], 1, 0, &global, &this->local[MAKESPHERE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
 	clFinish(clCommands);

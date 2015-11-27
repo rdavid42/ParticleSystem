@@ -31,8 +31,9 @@
 # define		ACCELERATION_KERNEL		0
 # define		UPDATE_KERNEL			1
 # define		MAKECUBE_KERNEL			2
+# define		MAKESPHERE_KERNEL		3
 
-# define		N_PROGRAM				3
+# define		N_PROGRAM				4
 # define		PARTICLE_NUMBER			1024000 * 3
 
 class Core
