@@ -7,6 +7,7 @@ Core::Core(void)
 
 Core::~Core(void)
 {
+	cleanDeviceMemory();
 	glfwDestroyWindow(this->window);
 	glfwTerminate();
 }
@@ -23,6 +24,8 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
 		core->launchKernelsAcceleration(-1, core->magnet);
+	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
+		core->launchKernelsAcceleration(1, core->magnet);
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
 		core->launchKernelsReset();
 	if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
@@ -133,7 +136,7 @@ Core::initOpencl(void)
 	int							i;
 	size_t						len;
 	char						buffer[2048];
-	static char const			*options = "-Werror -cl-fast-relaxed-math -I./inc";
+	static char const			*options = "-I./inc -Werror";
 	static char const			*programNames[N_PROGRAM] =
 	{
 		"acceleration",
@@ -237,7 +240,6 @@ Core::initParticles(void)
 	if (err != CL_SUCCESS)
 		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
 	delete [] hp;
-	std::cerr << CL_SUCCESS << std::endl;
 	// glFinish();
 	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
@@ -303,10 +305,7 @@ Core::launchKernelsUpdate(void)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
-	{
-		std::cerr << "Error code: " << err << std::endl;
 		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
-	}
 /*	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));*/
@@ -323,7 +322,7 @@ Core::cleanDeviceMemory(void)
 	err = clReleaseMemObject(this->dp);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Invalid device memory !", EXIT_FAILURE));
-	for (i = 0; i < PARTICLE_NUMBER; ++i)
+	for (i = 0; i < N_PROGRAM; ++i)
 	{
 		err = clReleaseProgram(this->clPrograms[i]);
 		if (err != CL_SUCCESS)
@@ -340,18 +339,7 @@ Core::cleanDeviceMemory(void)
 		return (printError("Error: Failed to release context !", EXIT_FAILURE));
 	return (CL_SUCCESS);
 }
-/*
-cl_int
-Core::writeDeviceParticles(void)
-{
-	cl_int			err;
 
-	err = clEnqueueWriteBuffer(this->clCommands, this->dp, CL_TRUE, 0, sizeof(t_particle) * PARTICLE_NUMBER, this->hp, 0, NULL, NULL);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to write to source array !", EXIT_FAILURE));
-	return (CL_SUCCESS);
-}
-*/
 void
 Core::resetParticles(t_particle *hp)
 {
