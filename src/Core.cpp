@@ -25,8 +25,6 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 		core->launchKernelsAcceleration(-1, core->magnet);
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
 		core->launchKernelsAcceleration(1, core->magnet);
-	if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-		core->launchKernelsAcceleration(1, core->magnet);
 
 }
 
@@ -567,7 +565,12 @@ Core::initShaders(void)
 void
 Core::update(void)
 {
-	launchKernelsUpdate();
+
+ 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		launchKernelsAcceleration(1, magnet);
+	else
+		launchKernelsUpdate();
+
 }
 
 void
