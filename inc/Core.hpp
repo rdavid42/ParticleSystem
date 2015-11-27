@@ -26,6 +26,7 @@
 # include "Mat4.hpp"
 # include "Mat4Stack.hpp"
 # include "Utils.hpp"
+# include "kernel_particle.h"
 
 # define		ACCELERATION_KERNEL		0
 # define		UPDATE_KERNEL			1
@@ -33,13 +34,6 @@
 
 # define		N_PROGRAM				3
 # define		PARTICLE_NUMBER			1024000 * 3
-
-typedef struct		s_particle
-{
-	float			pos[3];
-	float			vel[3];
-	float			acc[3];
-}					t_particle;
 
 class Core
 {
@@ -89,6 +83,10 @@ public:
 	GLuint					pVbo;
 
 	Vec3<float>				magnet;
+	double					particleSize;
+	double					particleSizeInc;
+	double					particleSizeMin;
+	double					particleSizeMax;
 
 	Core(void);
 	~Core(void);
