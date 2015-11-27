@@ -25,6 +25,8 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 		core->launchKernelsAcceleration(-1, core->magnet);
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
 		core->launchKernelsAcceleration(1, core->magnet);
+	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+		core->launchKernelsReset();
 
 }
 
@@ -41,8 +43,8 @@ cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
 void
 Core::moveMagnet(double xpos, double ypos)
 {
-	magnet.x =  ((xpos / windowWidth)  * 100 - 50); //100 = position Z caméra et 50 = position Z cam / 2
-	magnet.y = -((ypos / windowHeight) * 100 - 50);
+	magnet.x =  ((xpos / windowWidth)  * cameraPos.z - cameraPos.z / 2); //100 = position Z caméra et 50 = position Z cam / 2
+	magnet.y = -((ypos / windowHeight) * cameraPos.z - cameraPos.z / 2);
 }
 
 void
@@ -124,12 +126,14 @@ Core::initOpencl(void)
 	static char const			*programNames[N_PROGRAM] =
 	{
 		"acceleration",
-		"update"
+		"update",
+		"makeCube"
 	};
 	static char const			*kernelFiles[N_PROGRAM] =
 	{
 		"./kernels/acceleration.cl",
-		"./kernels/update.cl"
+		"./kernels/update.cl",
+		"./kernels/makeCube.cl"
 	};
 	std::string					file_content;
 	char						*file_string;
@@ -198,6 +202,35 @@ Core::initOpencl(void)
 	}
 	std::cerr << "Global workgroup size: " << this->global << std::endl;
 	return (CL_SUCCESS);
+}
+
+cl_int
+Core::launchKernelsReset(void)
+{
+	cl_int		err;
+	int			num = PARTICLE_NUMBER;
+	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
+
+	std::cerr << m << std::endl;
+	std::cerr << num << std::endl;
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects!", EXIT_FAILURE));
+	err = clSetKernelArg(clKernels[MAKECUBE_KERNEL], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[MAKECUBE_KERNEL], 1, sizeof(int), &m);
+	err |= clSetKernelArg(clKernels[MAKECUBE_KERNEL], 2, sizeof(float), &num);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKECUBE_KERNEL], 1, 0, &global, &this->local[MAKECUBE_KERNEL], 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
+	clFinish(clCommands);
+	std::cerr << "awd" << std::endl;
+	return (CL_SUCCESS);
+
 }
 
 cl_int
@@ -358,6 +391,7 @@ Core::initParticle(t_particle *p, float &x, float &y, float &z)
 	p->acc[2] = 0;
 }
 
+
 int
 Core::createSphere(t_particle *hp)
 {
@@ -446,7 +480,7 @@ Core::init(void)
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
-	cameraPos.set(0.0f, 0.0f, 100.0f);
+	cameraPos.set(0.0f, 0.0f, 200.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
 	cameraLookAt.set(0.0f, 0.0f, 0.0f);
 	setCamera(viewMatrix, cameraPos, cameraLookAt);
@@ -457,7 +491,6 @@ Core::init(void)
 	getLocations();
 	if (initParticles() != CL_SUCCESS)
 		return (0);
-
 	magnetInit();
 	return (1);
 }

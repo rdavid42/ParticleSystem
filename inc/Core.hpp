@@ -29,8 +29,9 @@
 
 # define		ACCELERATION_KERNEL		0
 # define		UPDATE_KERNEL			1
+# define		MAKECUBE_KERNEL			2
 
-# define		N_PROGRAM				2
+# define		N_PROGRAM				3
 # define		PARTICLE_NUMBER			1024000 * 3
 
 typedef struct		s_particle
@@ -125,9 +126,10 @@ public:
 	int						initShaders(void);
 	/* OpenCL */
 	cl_int					initOpencl(void);
+	cl_int					launchKernelsReset(void);
 	cl_int					launchKernelsAcceleration(int const &state, Vec3<float> const &pos);
 	cl_int					launchKernelsUpdate(void);
-	cl_int					initParticles(void);
+	cl_int					initParticles();
 	cl_int					cleanDeviceMemory(void);
 /*	cl_int					writeDeviceParticles(void);*/
 
