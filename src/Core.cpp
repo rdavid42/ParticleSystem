@@ -23,9 +23,19 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+	{
+		if (core->gravity)
+			core->gravity = !core->gravity;
 		core->launchKernelsAcceleration(-1, core->magnet);
+	}
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
-		core->launchKernelsAcceleration(1, core->magnet);
+	{
+		core->gravity = !core->gravity;
+		if (core->gravity)
+			core->gravityPos.set(core->magnet.x,
+								core->magnet.y,
+								core->magnet.z);
+	}
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
 		core->launchKernelsReset();
 	if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
@@ -268,7 +278,7 @@ cl_int
 Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
-
+	
 	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
@@ -389,6 +399,7 @@ Core::init(void)
 	particleSizeMin = 1.0;
 	particleSizeMax = 5.0;
 	glPointSize(particleSize);
+	gravity = 0;
 	return (1);
 }
 
@@ -497,7 +508,13 @@ Core::update(void)
 {
 
  	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		if (gravity)
+			gravity = !gravity;
 		launchKernelsAcceleration(1, magnet);
+	}
+	else if (gravity == 1)
+		launchKernelsAcceleration(1, gravityPos);
 	else
 		launchKernelsUpdate();
 
