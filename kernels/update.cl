@@ -11,16 +11,16 @@ __kernel void update(__global t_particle *p)
 	p[i].pos[0] += p[i].vel[0];
 	p[i].pos[1] += p[i].vel[1];
 	p[i].pos[2] += p[i].vel[2];
-	if (p[i].vel[0] < -3)
-		p[i].vel[0] = -3;
-	else if (p[i].vel[0] > 3)
-		p[i].vel[0] = 3;
-	if (p[i].vel[1] < -3)
-		p[i].vel[1] = -3;
-	else if (p[i].vel[1] > 3)
-		p[i].vel[1] = 3;
-	if (p[i].vel[2] < -3)
-		p[i].vel[2] = -3;
-	else if (p[i].vel[2] > 3)
-		p[i].vel[2] = 3;
+	if (p[i].vel[0] < -VEL_CAP)
+		p[i].vel[0] = -VEL_CAP;
+	else if (p[i].vel[0] > VEL_CAP)
+		p[i].vel[0] = VEL_CAP;
+	if (p[i].vel[1] < -VEL_CAP)
+		p[i].vel[1] = -VEL_CAP;
+	else if (p[i].vel[1] > VEL_CAP)
+		p[i].vel[1] = VEL_CAP;
+	if (p[i].vel[2] < -VEL_CAP)
+		p[i].vel[2] = -VEL_CAP;
+	else if (p[i].vel[2] > VEL_CAP)
+		p[i].vel[2] = VEL_CAP;
 }
