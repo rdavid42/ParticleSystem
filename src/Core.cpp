@@ -8,7 +8,7 @@ Core::Core(void)
 Core::~Core(void)
 {
 	cleanDeviceMemory();
-	glfwDestroyWindow(this->window);
+	glfwDestroyWindow(window);
 	glfwTerminate();
 }
 
@@ -66,7 +66,7 @@ Core::buildProjectionMatrix(Mat4<float> &proj, float const &fov,
 							float const &near, float const &far)
 {
 	float const			f = 1.0f / tan(fov * (M_PI / 360.0));
-	float const			ratio = (1.0f * this->windowWidth) / this->windowHeight;
+	float const			ratio = (1.0f * windowWidth) / windowHeight;
 
 	proj.setIdentity();
 	proj[0] = f / ratio;
@@ -124,7 +124,7 @@ Core::setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lo
 	right.normalize();
 	up.crossProduct(right, dir);
 	up.normalize();
-	this->setViewMatrix(view, dir, right, up);
+	setViewMatrix(view, dir, right, up);
 	translation.setTranslation(-pos.x, -pos.y, -pos.z);
 	view.multiply(translation);
 }
@@ -154,13 +154,13 @@ Core::initOpencl(void)
 	std::string					file_content;
 	char						*file_string;
 
-	this->global = PARTICLE_NUMBER;
-	this->num_entries = 1;
-	err = clGetPlatformIDs(this->num_entries, &this->platformID, &this->num_platforms);
+	global = PARTICLE_NUMBER;
+	num_entries = 1;
+	err = clGetPlatformIDs(num_entries, &platformID, &num_platforms);
 	if (err != CL_SUCCESS)
 		return (printError(std::ostringstream().flush() << "Error: Failed to retrieve platform id ! " << err, EXIT_FAILURE));
 
-	err = clGetDeviceIDs(this->platformID, CL_DEVICE_TYPE_GPU, 1, &this->clDeviceId, 0);
+	err = clGetDeviceIDs(platformID, CL_DEVICE_TYPE_GPU, 1, &clDeviceId, 0);
 	if (err != CL_SUCCESS)
 		return (printError(std::ostringstream().flush() << "Error: Failed to create a device group ! " << err, EXIT_FAILURE));
 
@@ -171,16 +171,16 @@ Core::initOpencl(void)
 		CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE,
 		(cl_context_properties)kCGLShareGroup,
 		CL_CONTEXT_PLATFORM,
-		(cl_context_properties)this->platformID,
+		(cl_context_properties)platformID,
 		0
 	};
 
-	this->clContext = clCreateContext(props, 1, &this->clDeviceId, 0, 0, &err);
-	if (!this->clContext || err != CL_SUCCESS)
+	clContext = clCreateContext(props, 1, &clDeviceId, 0, 0, &err);
+	if (!clContext || err != CL_SUCCESS)
 		return (printError("Error: Failed to create a compute context !", EXIT_FAILURE));
 
-	this->clCommands = clCreateCommandQueue(this->clContext, this->clDeviceId, 0, &err);
-	if (!this->clCommands || err != CL_SUCCESS)
+	clCommands = clCreateCommandQueue(clContext, clDeviceId, 0, &err);
+	if (!clCommands || err != CL_SUCCESS)
 		return (printError("Error: Failed to create a command queue !", EXIT_FAILURE));
 
 	for (i = 0; i < N_PROGRAM; ++i)
@@ -189,8 +189,8 @@ Core::initOpencl(void)
 		// std::cerr << file_content << std::endl;
 		file_string = (char *)file_content.c_str();
 
-		this->clPrograms[i] = clCreateProgramWithSource(this->clContext, 1, (char const **)&file_string, 0, &err);
-		if (!this->clPrograms[i] || err != CL_SUCCESS)
+		clPrograms[i] = clCreateProgramWithSource(clContext, 1, (char const **)&file_string, 0, &err);
+		if (!clPrograms[i] || err != CL_SUCCESS)
 		{
 			return (printError(std::ostringstream().flush()
 								<< "Error Failed to create compute "
@@ -199,25 +199,25 @@ Core::initOpencl(void)
 								EXIT_FAILURE));
 		}
 
-		err = clBuildProgram(this->clPrograms[i], 0, 0, options, 0, 0);
+		err = clBuildProgram(clPrograms[i], 0, 0, options, 0, 0);
 		if (err != CL_SUCCESS)
 		{
 			std::cerr << "Error: Failed to build program executable ! " << err << std::endl;
-			clGetProgramBuildInfo(this->clPrograms[i], this->clDeviceId, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+			clGetProgramBuildInfo(clPrograms[i], clDeviceId, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
 			std::cerr << buffer << std::endl;
 			return (EXIT_FAILURE);
 		}
 
-		this->clKernels[i] = clCreateKernel(this->clPrograms[i], programNames[i], &err);
-		if (!this->clKernels[i] || err != CL_SUCCESS)
+		clKernels[i] = clCreateKernel(clPrograms[i], programNames[i], &err);
+		if (!clKernels[i] || err != CL_SUCCESS)
 			return (printError("Error: Failed to create compute kernel !", EXIT_FAILURE));
-		err = clGetKernelWorkGroupInfo(this->clKernels[i], this->clDeviceId, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &this->local[i], NULL);
+		err = clGetKernelWorkGroupInfo(clKernels[i], clDeviceId, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local[i], NULL);
 		if (err != CL_SUCCESS)
 			return (printError(std::ostringstream().flush() << "Error: Failed to retrieve kernel work group info! " << err, EXIT_FAILURE));
-		// this->local[i] /= 2;
-		std::cerr << "Local workgroup size for " << programNames[i] << " kernel: " << this->local[i] << std::endl;
+		// local[i] /= 2;
+		std::cerr << "Local workgroup size for " << programNames[i] << " kernel: " << local[i] << std::endl;
 	}
-	std::cerr << "Global workgroup size: " << this->global << std::endl;
+	std::cerr << "Global workgroup size: " << global << std::endl;
 	return (CL_SUCCESS);
 }
 
@@ -256,7 +256,7 @@ Core::launchKernelsReset(void)
 	err |= clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 1, sizeof(int), &m);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKESPHERE_KERNEL], 1, 0, &global, &this->local[MAKESPHERE_KERNEL], 0, 0, 0);
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKESPHERE_KERNEL], 1, 0, &global, &local[MAKESPHERE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
 	clFinish(clCommands);
@@ -276,7 +276,7 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 4, sizeof(float), &pos.z);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &this->local[ACCELERATION_KERNEL], 0, 0, 0);
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &local[ACCELERATION_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
 	clFinish(clCommands);
@@ -304,22 +304,22 @@ Core::cleanDeviceMemory(void)
 	cl_int			err;
 	int				i;
 
-	err = clReleaseMemObject(this->dp);
+	err = clReleaseMemObject(dp);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Invalid device memory !", EXIT_FAILURE));
 	for (i = 0; i < N_PROGRAM; ++i)
 	{
-		err = clReleaseProgram(this->clPrograms[i]);
+		err = clReleaseProgram(clPrograms[i]);
 		if (err != CL_SUCCESS)
 			return (printError("Error: Failed to release program !", EXIT_FAILURE));
-		err = clReleaseKernel(this->clKernels[i]);
+		err = clReleaseKernel(clKernels[i]);
 		if (err != CL_SUCCESS)
 			return (printError("Error: Failed to release kernel !", EXIT_FAILURE));
 	}
-	err = clReleaseCommandQueue(this->clCommands);
+	err = clReleaseCommandQueue(clCommands);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to release command queue !", EXIT_FAILURE));
-	err = clReleaseContext(this->clContext);
+	err = clReleaseContext(clContext);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to release context !", EXIT_FAILURE));
 	return (CL_SUCCESS);
@@ -328,11 +328,11 @@ Core::cleanDeviceMemory(void)
 void
 Core::getLocations(void)
 {
-	this->positionLoc = glGetAttribLocation(this->program, "position");
-	this->projLoc = glGetUniformLocation(this->program, "proj_matrix");
-	this->viewLoc = glGetUniformLocation(this->program, "view_matrix");
-	this->colorLoc = glGetUniformLocation(this->program, "frag_color");
-	this->objLoc = glGetUniformLocation(this->program, "obj_matrix");
+	positionLoc = glGetAttribLocation(program, "position");
+	projLoc = glGetUniformLocation(program, "proj_matrix");
+	viewLoc = glGetUniformLocation(program, "view_matrix");
+	colorLoc = glGetUniformLocation(program, "frag_color");
+	objLoc = glGetUniformLocation(program, "obj_matrix");
 }
 
 void
@@ -435,9 +435,9 @@ Core::loadShader(GLenum type, char const *filename)
 int
 Core::loadShaders(void)
 {
-	if (!(this->vertexShader = this->loadShader(GL_VERTEX_SHADER, "./shaders/vertex_shader.gls")))
+	if (!(vertexShader = loadShader(GL_VERTEX_SHADER, "./shaders/vertex_shader.gls")))
 		return (printError("Failed to load vertex shader !", 0));
-	if (!(this->fragmentShader = this->loadShader(GL_FRAGMENT_SHADER, "./shaders/fragment_shader.gls")))
+	if (!(fragmentShader = loadShader(GL_FRAGMENT_SHADER, "./shaders/fragment_shader.gls")))
 		return (printError("Failed to load fragment shader !", 0));
 	return (1);
 }
@@ -468,8 +468,8 @@ Core::linkProgram(GLuint &program)
 void
 Core::deleteShaders(void)
 {
-	glDeleteShader(this->vertexShader);
-	glDeleteShader(this->fragmentShader);
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
 }
 
 int
@@ -528,9 +528,9 @@ Core::loop(void)
 		currentTime = glfwGetTime();
 		frames += 1.0;
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		this->update();
-		this->render();
-		glfwSwapBuffers(this->window);
+		update();
+		render();
+		glfwSwapBuffers(window);
 		glfwPollEvents();
 		if (currentTime - lastTime >= 1.0)
 		{
