@@ -136,7 +136,7 @@ Core::initOpencl(void)
 	int							i;
 	size_t						len;
 	char						buffer[2048];
-	static char const			*options = "-I./inc -Werror";
+	static char const			*options = "-I./inc -Werror -cl-fast-relaxed-math";
 	static char const			*programNames[N_PROGRAM] =
 	{
 		"acceleration",
