@@ -328,6 +328,9 @@ void
 Core::getLocations(void)
 {
 	this->positionLoc = glGetAttribLocation(this->program, "position");
+	this->redLoc = glGetUniformLocation(this->program, "red");
+	this->greenLoc = glGetUniformLocation(this->program, "green");
+	this->blueLoc = glGetUniformLocation(this->program, "blue");
 	this->projLoc = glGetUniformLocation(this->program, "proj_matrix");
 	this->viewLoc = glGetUniformLocation(this->program, "view_matrix");
 	this->colorLoc = glGetUniformLocation(this->program, "frag_color");
@@ -503,7 +506,11 @@ Core::update(void)
 void
 Core::render(void)
 {
+	float		ftime = glfwGetTime();
 	glUseProgram(program);
+	glUniform1f(redLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
+	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
+	glUniform1f(blueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
 	ms.push();

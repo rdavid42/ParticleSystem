@@ -79,6 +79,9 @@ public:
 	GLuint					objLoc;
 	GLuint					positionLoc;
 	GLuint					colorLoc;
+	GLuint					redLoc;
+	GLuint					greenLoc;
+	GLuint					blueLoc;
 
 	GLuint					pVao;
 	GLuint					pVbo;

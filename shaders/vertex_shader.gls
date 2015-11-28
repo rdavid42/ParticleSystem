@@ -3,10 +3,20 @@
 uniform mat4					view_matrix;
 uniform mat4					proj_matrix;
 uniform mat4					obj_matrix;
+uniform float					red;
+uniform	float					green;
+uniform float					blue;
+out float						ored;
+out	float						ogreen;
+out float						oblue;
+
 
 layout(location = 0) in vec3	position;
 
 void		main()
 {
 	gl_Position = proj_matrix * view_matrix * obj_matrix * vec4(position, 1.0);
+	ored = red;
+	oblue = blue;
+	ogreen = green;
 }
