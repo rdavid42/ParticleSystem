@@ -243,6 +243,8 @@ Core::initParticles(void)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	launchKernelsReset();
+	// texture
+	this->particleTex = loadTexture("wall1.bmp");
 	return (CL_SUCCESS);
 }
 
@@ -336,6 +338,30 @@ Core::getLocations(void)
 	viewLoc = glGetUniformLocation(this->program, "view_matrix");
 	colorLoc = glGetUniformLocation(this->program, "frag_color");
 	objLoc = glGetUniformLocation(this->program, "obj_matrix");
+}
+
+GLuint
+Core::loadTexture(char const *filename)
+{
+	GLuint				texture;
+	Bmp					bmp;
+
+	if (!bmp.load(filename))
+		return (printError("Failed to load bmp !", 0));
+	if (bmp.bpp != 24)
+		return (0);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bmp.width, bmp.height,
+				0, GL_RGB, GL_UNSIGNED_BYTE, bmp.data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	checkGlError(__FILE__, __LINE__);
+	return (texture);
 }
 
 void
