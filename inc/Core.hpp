@@ -88,6 +88,8 @@ public:
 	GLuint					pVbo;
 
 	Vec3<float>				magnet;
+	Vec3<float>				gravityPos;
+	bool					gravity;
 	double					particleSize;
 	double					particleSizeInc;
 	double					particleSizeMin;

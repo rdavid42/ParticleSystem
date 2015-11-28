@@ -23,9 +23,19 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+	{
+		if (core->gravity)
+			core->gravity = !core->gravity;
 		core->launchKernelsAcceleration(-1, core->magnet);
+	}
 	if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
-		core->launchKernelsAcceleration(1, core->magnet);
+	{
+		core->gravity = !core->gravity;
+		if (core->gravity)
+			core->gravityPos.set(core->magnet.x,
+								core->magnet.y,
+								core->magnet.z);
+	}
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
 		core->launchKernelsReset();
 	if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
@@ -244,7 +254,7 @@ Core::initParticles(void)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	launchKernelsReset();
 	// texture
-	this->particleTex = loadTexture("wall1.bmp");
+	this->particleTex = loadTexture("Particle.bmp");
 	return (CL_SUCCESS);
 }
 
@@ -270,7 +280,7 @@ cl_int
 Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
-
+	
 	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
@@ -352,8 +362,8 @@ Core::loadTexture(char const *filename)
 		return (0);
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bmp.width, bmp.height,
-				0, GL_RGB, GL_UNSIGNED_BYTE, bmp.data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height,
+				0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -397,6 +407,8 @@ Core::init(void)
 	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
 	cameraPos.set(0.0f, 0.0f, 200.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
@@ -415,6 +427,7 @@ Core::init(void)
 	particleSizeMin = 1.0;
 	particleSizeMax = 5.0;
 	glPointSize(particleSize);
+	gravity = 0;
 	return (1);
 }
 
@@ -523,7 +536,13 @@ Core::update(void)
 {
 
  	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		if (gravity)
+			gravity = !gravity;
 		launchKernelsAcceleration(1, magnet);
+	}
+	else if (gravity == 1)
+		launchKernelsAcceleration(1, gravityPos);
 	else
 		launchKernelsUpdate();
 
@@ -543,6 +562,7 @@ Core::render(void)
 		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
 		glBindVertexArray(pVao);
 		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+		glBindTexture(GL_TEXTURE_2D, particleTex);
 		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
 	ms.pop();
 	checkGlError(__FILE__, __LINE__);
