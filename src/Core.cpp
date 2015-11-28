@@ -358,17 +358,16 @@ Core::loadTexture(char const *filename)
 
 	if (!bmp.load(filename))
 		return (printError("Failed to load bmp !", 0));
-	if (bmp.bpp != 24)
-		return (0);
+	// if (bmp.bpp != 24)
+		// return (0);
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height,
-				0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glGenerateMipmap(GL_TEXTURE_2D);
+	// glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	checkGlError(__FILE__, __LINE__);
 	return (texture);
