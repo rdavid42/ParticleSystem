@@ -6,6 +6,7 @@
 # endif
 
 # include <cmath>
+# include <iostream>
 # include <iomanip>
 
 template<typename TYPE>

@@ -18,11 +18,12 @@
 #  include <OpenGL/CGLTypes.h>
 #  include <OpenGL/CGLCurrent.h>
 # else
-#  define GL_GLEXT_PROTOTYPES
+// #  define GL_GLEXT_PROTOTYPES
 #  include <CL/cl.h>
+#  include <CL/cl_gl.h>
+#  include <GL/glx.h>
 # endif
 
-# include <GLFW/glfw3.h>
 # include "Mat4.hpp"
 # include "Mat4Stack.hpp"
 # include "Utils.hpp"

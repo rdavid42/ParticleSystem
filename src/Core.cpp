@@ -174,6 +174,7 @@ Core::initOpencl(void)
 	if (err != CL_SUCCESS)
 		return (printError(std::ostringstream().flush() << "Error: Failed to create a device group ! " << err, EXIT_FAILURE));
 
+#ifdef __APPLE__
 	CGLContextObj			kCGLContext = CGLGetCurrentContext();
 	CGLShareGroupObj		kCGLShareGroup = CGLGetShareGroup(kCGLContext);
 	cl_context_properties	props[] =
@@ -184,6 +185,16 @@ Core::initOpencl(void)
 		(cl_context_properties)platformID,
 		0
 	};
+#else
+	cl_context_properties props[] =
+	{
+		CL_GL_CONTEXT_KHR,
+		(cl_context_properties)glXGetCurrentContext(),
+		CL_GLX_DISPLAY_KHR,
+		(cl_context_properties)glXGetCurrentDisplay(),
+		0
+	};
+#endif
 
 	clContext = clCreateContext(props, 1, &clDeviceId, 0, 0, &err);
 	if (!clContext || err != CL_SUCCESS)
@@ -358,8 +369,6 @@ Core::loadTexture(char const *filename)
 
 	if (!bmp.load(filename))
 		return (printError("Failed to load bmp !", 0));
-	// if (bmp.bpp != 24)
-		// return (0);
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
@@ -388,12 +397,13 @@ Core::init(void)
 	windowHeight = 1280;
 	if (!glfwInit())
 		return (0);
+#ifdef __APPLE__
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	window = glfwCreateWindow(windowWidth, windowHeight,
-									"Particle System", NULL, NULL);
+#endif
+	window = glfwCreateWindow(windowWidth, windowHeight, "Particle System", NULL, NULL);
 	if (!window)
 	{
 		glfwTerminate();
@@ -428,6 +438,69 @@ Core::init(void)
 	glPointSize(particleSize);
 	gravity = 0;
 	return (1);
+}
+
+void
+Core::update(void)
+{
+
+ 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		if (gravity)
+			gravity = !gravity;
+		launchKernelsAcceleration(1, magnet);
+	}
+	else if (gravity == 1)
+		launchKernelsAcceleration(1, gravityPos);
+	else
+		launchKernelsUpdate();
+
+}
+
+void
+Core::render(void)
+{
+	float		ftime = glfwGetTime();
+	glUseProgram(program);
+	glUniform1f(redLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
+	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
+	glUniform1f(blueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
+	ms.push();
+		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
+		glBindVertexArray(pVao);
+		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+		glBindTexture(GL_TEXTURE_2D, particleTex);
+		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
+	ms.pop();
+	checkGlError(__FILE__, __LINE__);
+}
+
+void
+Core::loop(void)
+{
+	double		lastTime, currentTime;
+	double		frames;
+
+	frames = 0.0;
+	lastTime = glfwGetTime();
+	while (!glfwWindowShouldClose(window))
+	{
+		currentTime = glfwGetTime();
+		frames += 1.0;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		update();
+		render();
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+		if (currentTime - lastTime >= 1.0)
+		{
+			glfwSetWindowTitle(window, std::to_string(1000.0 / frames).c_str());
+			frames = 0.0;
+			lastTime += 1.0;
+		}
+	}
 }
 
 int
@@ -528,67 +601,4 @@ Core::initShaders(void)
 	checkGlError(__FILE__, __LINE__);
 	deleteShaders();
 	return (1);
-}
-
-void
-Core::update(void)
-{
-
- 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-	{
-		if (gravity)
-			gravity = !gravity;
-		launchKernelsAcceleration(1, magnet);
-	}
-	else if (gravity == 1)
-		launchKernelsAcceleration(1, gravityPos);
-	else
-		launchKernelsUpdate();
-
-}
-
-void
-Core::render(void)
-{
-	float		ftime = glfwGetTime();
-	glUseProgram(program);
-	glUniform1f(redLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
-	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
-	glUniform1f(blueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
-	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
-	ms.push();
-		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
-		glBindVertexArray(pVao);
-		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-		glBindTexture(GL_TEXTURE_2D, particleTex);
-		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
-	ms.pop();
-	checkGlError(__FILE__, __LINE__);
-}
-
-void
-Core::loop(void)
-{
-	double		lastTime, currentTime;
-	double		frames;
-
-	frames = 0.0;
-	lastTime = glfwGetTime();
-	while (!glfwWindowShouldClose(window))
-	{
-		currentTime = glfwGetTime();
-		frames += 1.0;
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		update();
-		render();
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-		if (currentTime - lastTime >= 1.0)
-		{
-			glfwSetWindowTitle(window, std::to_string(1000.0 / frames).c_str());
-			frames = 0.0;
-			lastTime += 1.0;
-		}
-	}
 }
