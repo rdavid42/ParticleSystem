@@ -36,7 +36,7 @@
 # define		MAKESPHERE_KERNEL		3
 
 # define		N_PROGRAM				4
-# define		PARTICLE_NUMBER			1024000 * 3
+# define		PARTICLE_NUMBER			1024000 * 5
 
 class Core
 {

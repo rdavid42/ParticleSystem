@@ -243,38 +243,14 @@ Core::initOpencl(void)
 }
 
 cl_int
-Core::initParticles(void)
-{
-	cl_int			err;
-
-	// OPENGL VAO/VBO INITIALISATION
-	glGenVertexArrays(1, &pVao);
-	glBindVertexArray(pVao);
-	glGenBuffers(1, &pVbo);
-	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, 0, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(positionLoc);
-	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
-	// OPENCL INTEROPERABILITY
-	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
-	if (err != CL_SUCCESS)
-		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
-	// glFinish();
-	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
-	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
-	launchKernelsReset();
-	// texture
-	this->particleTex = loadTexture("Particle.bmp");
-	return (CL_SUCCESS);
-}
-
-cl_int
 Core::launchKernelsReset(void)
 {
 	cl_int		err;
 	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
 
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 1, sizeof(int), &m);
 	if (err != CL_SUCCESS)
@@ -282,6 +258,9 @@ Core::launchKernelsReset(void)
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKESPHERE_KERNEL], 1, 0, &global, &local[MAKESPHERE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 
@@ -292,6 +271,9 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
 	
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
@@ -302,6 +284,9 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &local[ACCELERATION_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
@@ -311,12 +296,18 @@ Core::launchKernelsUpdate(void)
 {
 	cl_int			err;
 
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &dp);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
@@ -390,6 +381,27 @@ Core::magnetInit(void)
 	magnet.z = 0;
 }
 
+void
+glErrorCallback(GLenum        source,
+				GLenum        type,
+				GLuint        id,
+				GLenum        severity,
+				GLsizei       length,
+				const GLchar* message,
+				GLvoid*       userParam)
+{
+	(void)userParam;
+	(void)length;
+	std::cerr << "OpenGL Error:" << std::endl;
+	std::cerr << "=============" << std::endl;
+	std::cerr << " Object ID: " << id << std::endl;
+	std::cerr << " Severity:  " << severity << std::endl;
+	std::cerr << " Type:      " << type << std::endl;
+	std::cerr << " Source:    " << source << std::endl;
+	std::cerr << " Message:   " << message << std::endl;
+	glFinish();
+}
+
 int
 Core::init(void)
 {
@@ -397,12 +409,10 @@ Core::init(void)
 	windowHeight = 1280;
 	if (!glfwInit())
 		return (0);
-#ifdef __APPLE__
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#endif
 	window = glfwCreateWindow(windowWidth, windowHeight, "Particle System", NULL, NULL);
 	if (!window)
 	{
@@ -440,27 +450,53 @@ Core::init(void)
 	return (1);
 }
 
-void
-Core::update(void)
+cl_int
+Core::initParticles(void)
 {
+	GLint			bsize;
+	cl_int			err;
 
- 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	std::cerr << glGetString(GL_VENDOR) << std::endl;
+	std::cerr << glGetString(GL_RENDERER) << std::endl;
+	std::cerr << glGetString(GL_VERSION) << std::endl;
+	std::cerr << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+	// OPENGL VAO/VBO INITIALISATION
+	if (glDebugMessageControlARB != NULL)
 	{
-		if (gravity)
-			gravity = !gravity;
-		launchKernelsAcceleration(1, magnet);
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+		glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+		glDebugMessageCallbackARB((GLDEBUGPROCARB)glErrorCallback, NULL);
 	}
-	else if (gravity == 1)
-		launchKernelsAcceleration(1, gravityPos);
-	else
-		launchKernelsUpdate();
-
+	glGenVertexArrays(1, &pVao);
+	glBindVertexArray(pVao);
+	glGenBuffers(1, &pVbo);
+	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, 0, GL_STATIC_DRAW);
+	glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bsize);
+	std::cerr << "VBO size: " << bsize << std::endl;
+	glEnableVertexAttribArray(positionLoc);
+	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
+	std::cerr << "--- 1 --- " << std::endl;
+	// OPENCL INTEROPERABILITY
+	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
+	std::cerr << "--- 2 ---" << std::endl;
+	if (err != CL_SUCCESS)
+		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	launchKernelsReset();
+	// texture
+	this->particleTex = loadTexture("Particle.bmp");
+	checkGlError(__FILE__, __LINE__);
+	return (CL_SUCCESS);
 }
 
 void
 Core::render(void)
 {
 	float		ftime = glfwGetTime();
+
 	glUseProgram(program);
 	glUniform1f(redLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
 	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
@@ -471,10 +507,27 @@ Core::render(void)
 		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
 		glBindVertexArray(pVao);
 		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-		glBindTexture(GL_TEXTURE_2D, particleTex);
+		// glBindTexture(GL_TEXTURE_2D, particleTex);
 		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
-	ms.pop();
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	checkGlError(__FILE__, __LINE__);
+	ms.pop();
+}
+
+void
+Core::update(void)
+{
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		if (gravity)
+			gravity = !gravity;
+		launchKernelsAcceleration(1, magnet);
+	}
+	else if (gravity == 1)
+		launchKernelsAcceleration(1, gravityPos);
+	else
+		launchKernelsUpdate();
 }
 
 void
