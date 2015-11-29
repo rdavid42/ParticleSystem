@@ -235,7 +235,7 @@ Core::initOpencl(void)
 		err = clGetKernelWorkGroupInfo(clKernels[i], clDeviceId, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local[i], NULL);
 		if (err != CL_SUCCESS)
 			return (printError(std::ostringstream().flush() << "Error: Failed to retrieve kernel work group info! " << err, EXIT_FAILURE));
-		// local[i] /= 2;
+		// local[i] /= 64;
 		std::cerr << "Local workgroup size for " << programNames[i] << " kernel: " << local[i] << std::endl;
 	}
 	std::cerr << "Global workgroup size: " << global << std::endl;
@@ -365,9 +365,9 @@ Core::loadTexture(char const *filename)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	// glGenerateMipmap(GL_TEXTURE_2D);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	checkGlError(__FILE__, __LINE__);
 	return (texture);
@@ -424,10 +424,8 @@ Core::init(void)
 	glfwSwapInterval(1); // VSYNC 60 fps max
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_pos_callback);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
 	cameraPos.set(0.0f, 0.0f, 200.0f);
 	// cameraPos.set(5.5f, 5.5f, 5.5f);
@@ -441,10 +439,10 @@ Core::init(void)
 	if (initParticles() != CL_SUCCESS)
 		return (0);
 	magnetInit();
-	particleSize = 1.0;
+	particleSize = 10.0;
 	particleSizeInc = 1.0;
 	particleSizeMin = 1.0;
-	particleSizeMax = 5.0;
+	particleSizeMax = 10.0;
 	glPointSize(particleSize);
 	gravity = 0;
 	return (1);
@@ -498,16 +496,16 @@ Core::render(void)
 	float		ftime = glfwGetTime();
 
 	glUseProgram(program);
-	glUniform1f(redLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
-	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
-	glUniform1f(blueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
+	glUniform1f(redLoc, std::abs(-0.5 + cos(ftime * 0.4 + 1.5)) * 0.75);
+	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)) * 0.75);
+	glUniform1f(blueLoc, std::abs(-0.5 + sin(ftime * 0.2)) * 0.75);
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
 	ms.push();
 		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
 		glBindVertexArray(pVao);
 		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-		// glBindTexture(GL_TEXTURE_2D, particleTex);
+		glBindTexture(GL_TEXTURE_2D, particleTex);
 		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
