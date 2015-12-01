@@ -2,28 +2,6 @@
 #ifndef CORE_HPP
 # define CORE_HPP
 
-# if defined(__APPLE_CC__)
-#  ifndef GLFW_INCLUDE_GLCOREARB
-#   define GLFW_INCLUDE_GLCOREARB
-#  endif
-#  ifndef GLFW_INCLUDE_GLEXT
-#   define GLFW_INCLUDE_GLEXT
-#  endif
-# else
-#  define GL_GLEXT_PROTOTYPES
-# endif
-
-# ifdef __APPLE__
-#  include <OpenCL/opencl.h>
-#  include <OpenGL/CGLTypes.h>
-#  include <OpenGL/CGLCurrent.h>
-# else
-// #  define GL_GLEXT_PROTOTYPES
-#  include <CL/cl.h>
-#  include <CL/cl_gl.h>
-#  include <GL/glx.h>
-# endif
-
 # include "Mat4.hpp"
 # include "Mat4Stack.hpp"
 # include "Utils.hpp"

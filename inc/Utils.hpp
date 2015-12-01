@@ -1,6 +1,27 @@
 #ifndef UTILS_HPP
 # define UTILS_HPP
 
+# if defined(__APPLE_CC__)
+#  ifndef GLFW_INCLUDE_GLCOREARB
+#   define GLFW_INCLUDE_GLCOREARB
+#  endif
+#  ifndef GLFW_INCLUDE_GLEXT
+#   define GLFW_INCLUDE_GLEXT
+#  endif
+# else
+#  define GL_GLEXT_PROTOTYPES
+# endif
+
+# ifdef __APPLE__
+#  include <OpenCL/opencl.h>
+#  include <OpenGL/CGLTypes.h>
+#  include <OpenGL/CGLCurrent.h>
+# else
+#  include <CL/cl.h>
+#  include <CL/cl_gl.h>
+#  include <GL/glx.h>
+# endif
+
 # include <GLFW/glfw3.h>
 
 # include <cstring>

@@ -410,7 +410,7 @@ Core::init(void)
 	if (!glfwInit())
 		return (0);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	window = glfwCreateWindow(windowWidth, windowHeight, "Particle System", NULL, NULL);
@@ -459,6 +459,7 @@ Core::initParticles(void)
 	std::cerr << glGetString(GL_VERSION) << std::endl;
 	std::cerr << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 	// OPENGL VAO/VBO INITIALISATION
+#ifndef __APPLE__
 	if (glDebugMessageControlARB != NULL)
 	{
 		glEnable(GL_DEBUG_OUTPUT);
@@ -466,6 +467,7 @@ Core::initParticles(void)
 		glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 		glDebugMessageCallbackARB((GLDEBUGPROCARB)glErrorCallback, NULL);
 	}
+#endif
 	glGenVertexArrays(1, &pVao);
 	glBindVertexArray(pVao);
 	glGenBuffers(1, &pVbo);
