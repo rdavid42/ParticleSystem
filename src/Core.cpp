@@ -264,6 +264,9 @@ Core::launchKernelsReset(void)
 	cl_int		err;
 	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
 
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 1, sizeof(int), &m);
 	if (err != CL_SUCCESS)
@@ -271,6 +274,9 @@ Core::launchKernelsReset(void)
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKESPHERE_KERNEL], 1, 0, &global, &local[MAKESPHERE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 
@@ -281,6 +287,9 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
 	
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
@@ -291,6 +300,9 @@ Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &local[ACCELERATION_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
@@ -300,12 +312,18 @@ Core::launchKernelsUpdate(void)
 {
 	cl_int			err;
 
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[UPDATE_KERNEL], 0, sizeof(cl_mem), &dp);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[UPDATE_KERNEL], 1, 0, &global, &local[UPDATE_KERNEL], 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to launch update kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
 }
@@ -344,6 +362,9 @@ Core::getLocations(void)
 	redLoc = glGetUniformLocation(this->program, "red");
 	greenLoc = glGetUniformLocation(this->program, "green");
 	blueLoc = glGetUniformLocation(this->program, "blue");
+	rredLoc = glGetUniformLocation(this->program, "rred");
+	rgreenLoc = glGetUniformLocation(this->program, "rgreen");
+	rblueLoc = glGetUniformLocation(this->program, "rblue");
 	projLoc = glGetUniformLocation(this->program, "proj_matrix");
 	viewLoc = glGetUniformLocation(this->program, "view_matrix");
 	colorLoc = glGetUniformLocation(this->program, "frag_color");
@@ -384,8 +405,9 @@ Core::magnetInit(void)
 int
 Core::init(void)
 {
-	windowWidth = 1280;
-	windowHeight = 1280;
+
+	windowWidth = 2560;
+	windowHeight = 1440;
 	if (!glfwInit())
 		return (0);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -394,6 +416,8 @@ Core::init(void)
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	window = glfwCreateWindow(windowWidth, windowHeight,
 									"Particle System", NULL, NULL);
+// 	window = glfwCreateWindow(windowWidth, windowHeight,
+// 									"Particle System", glfwGetPrimaryMonitor(), NULL);
 	if (!window)
 	{
 		glfwTerminate();
@@ -551,10 +575,28 @@ void
 Core::render(void)
 {
 	float		ftime = glfwGetTime();
+	(void)ftime;
+	std::cerr <<"X " << magnet.x << std::endl;
+	std::cerr <<"Y " <<  magnet.y << std::endl;
+	std::cerr <<"Z " <<  magnet.z << std::endl;
+
 	glUseProgram(program);
-	glUniform1f(redLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
-	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
-	glUniform1f(blueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
+	if (gravity)
+	{
+		glUniform1f(redLoc, (gravityPos.x));
+		glUniform1f(greenLoc, (gravityPos.y));
+		glUniform1f(blueLoc, (gravityPos.z));
+	}
+	else
+	{
+		glUniform1f(redLoc, (magnet.x));
+		glUniform1f(greenLoc, (magnet.y));
+		glUniform1f(blueLoc, (magnet.z));
+	}
+	
+ 	glUniform1f(rredLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
+ 	glUniform1f(rgreenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
+ 	glUniform1f(rblueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
 	ms.push();

@@ -35,7 +35,7 @@
 # define		MAKESPHERE_KERNEL		3
 
 # define		N_PROGRAM				4
-# define		PARTICLE_NUMBER			1024000 * 3
+# define		PARTICLE_NUMBER			1024000 
 
 class Core
 {
@@ -83,6 +83,9 @@ public:
 	GLuint					redLoc;
 	GLuint					greenLoc;
 	GLuint					blueLoc;
+	GLuint					rredLoc;
+	GLuint					rgreenLoc;
+	GLuint					rblueLoc;
 
 	GLuint					pVao;
 	GLuint					pVbo;
