@@ -6,6 +6,10 @@ uniform mat4					obj_matrix;
 uniform float					red;
 uniform	float					green;
 uniform float					blue;
+uniform float					rred;
+uniform float					rgreen;
+uniform float					rblue;
+
 out float						ored;
 out	float						ogreen;
 out float						oblue;
@@ -14,8 +18,43 @@ layout(location = 0) in vec3	position;
 
 void		main()
 {
+	float h1;
+	float h2;
+	float h3;
+	float h;
+	
 	gl_Position = proj_matrix * view_matrix * obj_matrix * vec4(position, 1.0);
-	ored = red;
-	oblue = blue;
-	ogreen = green;
+
+// 	h1 = (red - position.x) *
+// 		(red - position.x);
+// 	h2 = (green - position.y) *
+// 		(green - position.y);
+// 	h3 = (blue - position.z) *
+// 		(blue - position.z);
+// 	ored = 0.9 - sqrt(h1) / 255 * 5 ;
+// 	ogreen = 0.9 - sqrt(h2) / 255 * 5;
+// 	oblue = 0.9 -  sqrt(h3) / 255 * 5;
+	
+// 	ored = rred;
+// 	oblue = rblue;
+// 	ogreen = rgreen;
+// 
+// 	h1 = (red - position.x);
+// 	h2 = (green - position.y);
+// 	h3 = (blue - position.z);
+// 	
+// 	h = sqrt(h1 * h1 + h2 * h2 + h3 * h3);
+// 	ored = 1 - (h1 * rred * 5) / 255;	
+// 	oblue = 1 - (h2 * rblue * 5) / 255;	
+// 	ogreen = 1 - (h3 * rgreen * 5) / 255;	
+
+	h1 = (red - position.x);
+	h2 = (green - position.y);
+	h3 = (blue - position.z);
+	
+	h = sqrt(h1 * h1 + h2 * h2 + h3 * h3);
+	ored = 1 - (h * rred * 3) / 255;	
+	oblue = 1 - (h * rblue * 3) / 255;	
+	ogreen = 1 - (h * rgreen * 3) / 255;	
+
 }

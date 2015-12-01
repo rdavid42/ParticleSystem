@@ -235,7 +235,6 @@ Core::initOpencl(void)
 		err = clGetKernelWorkGroupInfo(clKernels[i], clDeviceId, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local[i], NULL);
 		if (err != CL_SUCCESS)
 			return (printError(std::ostringstream().flush() << "Error: Failed to retrieve kernel work group info! " << err, EXIT_FAILURE));
-		// local[i] /= 64;
 		std::cerr << "Local workgroup size for " << programNames[i] << " kernel: " << local[i] << std::endl;
 	}
 	std::cerr << "Global workgroup size: " << global << std::endl;
@@ -346,6 +345,9 @@ Core::getLocations(void)
 	redLoc = glGetUniformLocation(this->program, "red");
 	greenLoc = glGetUniformLocation(this->program, "green");
 	blueLoc = glGetUniformLocation(this->program, "blue");
+	rredLoc = glGetUniformLocation(this->program, "rred");
+	rgreenLoc = glGetUniformLocation(this->program, "rgreen");
+	rblueLoc = glGetUniformLocation(this->program, "rblue");
 	projLoc = glGetUniformLocation(this->program, "proj_matrix");
 	viewLoc = glGetUniformLocation(this->program, "view_matrix");
 	colorLoc = glGetUniformLocation(this->program, "frag_color");
@@ -405,8 +407,9 @@ glErrorCallback(GLenum        source,
 int
 Core::init(void)
 {
-	windowWidth = 1280;
-	windowHeight = 1280;
+
+	windowWidth = 2560;
+	windowHeight = 1440;
 	if (!glfwInit())
 		return (0);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -414,6 +417,8 @@ Core::init(void)
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	window = glfwCreateWindow(windowWidth, windowHeight, "Particle System", NULL, NULL);
+// 	window = glfwCreateWindow(windowWidth, windowHeight,
+// 									"Particle System", glfwGetPrimaryMonitor(), NULL);
 	if (!window)
 	{
 		glfwTerminate();
@@ -439,7 +444,7 @@ Core::init(void)
 	if (initParticles() != CL_SUCCESS)
 		return (0);
 	magnetInit();
-	particleSize = 10.0;
+	particleSize = 1.0;
 	particleSizeInc = 1.0;
 	particleSizeMin = 1.0;
 	particleSizeMax = 10.0;
@@ -487,73 +492,8 @@ Core::initParticles(void)
 	glBindVertexArray(0);
 	launchKernelsReset();
 	// texture
-	this->particleTex = loadTexture("Particle.bmp");
 	checkGlError(__FILE__, __LINE__);
 	return (CL_SUCCESS);
-}
-
-void
-Core::render(void)
-{
-	float		ftime = glfwGetTime();
-
-	glUseProgram(program);
-	glUniform1f(redLoc, std::abs(-0.5 + cos(ftime * 0.4 + 1.5)) * 0.75);
-	glUniform1f(greenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)) * 0.75);
-	glUniform1f(blueLoc, std::abs(-0.5 + sin(ftime * 0.2)) * 0.75);
-	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
-	ms.push();
-		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
-		glBindVertexArray(pVao);
-		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-		glBindTexture(GL_TEXTURE_2D, particleTex);
-		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-	checkGlError(__FILE__, __LINE__);
-	ms.pop();
-}
-
-void
-Core::update(void)
-{
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-	{
-		if (gravity)
-			gravity = !gravity;
-		launchKernelsAcceleration(1, magnet);
-	}
-	else if (gravity == 1)
-		launchKernelsAcceleration(1, gravityPos);
-	else
-		launchKernelsUpdate();
-}
-
-void
-Core::loop(void)
-{
-	double		lastTime, currentTime;
-	double		frames;
-
-	frames = 0.0;
-	lastTime = glfwGetTime();
-	while (!glfwWindowShouldClose(window))
-	{
-		currentTime = glfwGetTime();
-		frames += 1.0;
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		update();
-		render();
-		glfwSwapBuffers(window);
-		glfwPollEvents();
-		if (currentTime - lastTime >= 1.0)
-		{
-			glfwSetWindowTitle(window, std::to_string(1000.0 / frames).c_str());
-			frames = 0.0;
-			lastTime += 1.0;
-		}
-	}
 }
 
 int
@@ -654,4 +594,77 @@ Core::initShaders(void)
 	checkGlError(__FILE__, __LINE__);
 	deleteShaders();
 	return (1);
+}
+
+void
+Core::update(void)
+{
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	{
+		if (gravity)
+			gravity = !gravity;
+		launchKernelsAcceleration(1, magnet);
+	}
+	else if (gravity == 1)
+		launchKernelsAcceleration(1, gravityPos);
+	else
+		launchKernelsUpdate();
+}
+
+void
+Core::render(void)
+{
+	float		ftime = glfwGetTime();
+
+	glUseProgram(program);
+	if (gravity)
+	{
+		glUniform1f(redLoc, (gravityPos.x));
+		glUniform1f(greenLoc, (gravityPos.y));
+		glUniform1f(blueLoc, (gravityPos.z));
+	}
+	else
+	{
+		glUniform1f(redLoc, (magnet.x));
+		glUniform1f(greenLoc, (magnet.y));
+		glUniform1f(blueLoc, (magnet.z));
+	}
+ 	glUniform1f(rredLoc, (std::abs(-0.5 + cos(ftime * 0.4 + 1.5))));
+ 	glUniform1f(rgreenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
+ 	glUniform1f(rblueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
+	ms.push();
+		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
+		glBindVertexArray(pVao);
+		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
+		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
+	ms.pop();
+	checkGlError(__FILE__, __LINE__);
+}
+
+void
+Core::loop(void)
+{
+	double		lastTime, currentTime;
+	double		frames;
+
+	frames = 0.0;
+	lastTime = glfwGetTime();
+	while (!glfwWindowShouldClose(window))
+	{
+		currentTime = glfwGetTime();
+		frames += 1.0;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		update();
+		render();
+		glfwSwapBuffers(window);
+		glfwPollEvents();
+		if (currentTime - lastTime >= 1.0)
+		{
+			glfwSetWindowTitle(window, std::to_string(1000.0 / frames).c_str());
+			frames = 0.0;
+			lastTime += 1.0;
+		}
+	}
 }

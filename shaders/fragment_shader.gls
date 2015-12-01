@@ -1,17 +1,16 @@
 #version 410
 
-uniform sampler2D		tex;
-
 in float				ored;
 in float				ogreen;
 in float				oblue;
 
 out vec4				outputColor;
 
+layout(location = 0) in vec3	position;
+
 void main(void)
 {
-	outputColor = texture(tex, gl_PointCoord) * vec4(ored, ogreen, oblue, 1.0);
-	if (outputColor.a == 0.0)
-		discard;
-	// outputColor = vec4(ored, ogreen, oblue, 1.0);
+	//outputColor = texture(tex, gl_PointCoord) * vec4(ored, ogreen, oblue, 1.0);
+	 outputColor = vec4(ored, ogreen, oblue, 1.0);
+	//outputColor = vec4((ored - position.x), (ogreen - position.y) , (oblue - position.x- position.y), 1.0);
 }

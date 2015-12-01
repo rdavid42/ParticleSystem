@@ -62,6 +62,9 @@ public:
 	GLuint					redLoc;
 	GLuint					greenLoc;
 	GLuint					blueLoc;
+	GLuint					rredLoc;
+	GLuint					rgreenLoc;
+	GLuint					rblueLoc;
 
 	GLuint					pVao;
 	GLuint					pVbo;
@@ -73,8 +76,6 @@ public:
 	double					particleSizeInc;
 	double					particleSizeMin;
 	double					particleSizeMax;
-
-	GLuint					particleTex;
 
 	Core(void);
 	~Core(void);
