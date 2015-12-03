@@ -9,12 +9,16 @@ uniform float					blue;
 uniform float					rred;
 uniform float					rgreen;
 uniform float					rblue;
+uniform float					emitterActive;
 
 out float						ored;
 out	float						ogreen;
 out float						oblue;
+out float						fragLife;
+out float						fragEmitterActive;
 
 layout(location = 0) in vec3	position;
+layout(location = 1) in float	life;
 
 void		main()
 {
@@ -22,9 +26,10 @@ void		main()
 	float h2;
 	float h3;
 	float h;
-	
-	gl_Position = proj_matrix * view_matrix * obj_matrix * vec4(position, 1.0);
 
+	gl_Position = proj_matrix * view_matrix * obj_matrix * vec4(position, 1.0);
+	fragLife = life;
+	fragEmitterActive = emitterActive;
 // 	h1 = (red - position.x) *
 // 		(red - position.x);
 // 	h2 = (green - position.y) *
@@ -34,7 +39,7 @@ void		main()
 // 	ored = 0.9 - sqrt(h1) / 255 * 5 ;
 // 	ogreen = 0.9 - sqrt(h2) / 255 * 5;
 // 	oblue = 0.9 -  sqrt(h3) / 255 * 5;
-	
+
 // 	ored = rred;
 // 	oblue = rblue;
 // 	ogreen = rgreen;
@@ -44,9 +49,9 @@ void		main()
 // 	h3 = (blue - position.z);
 // 	
 // 	h = sqrt(h1 * h1 + h2 * h2 + h3 * h3);
-// 	ored = 1 - (h1 * rred * 5) / 255;	
-// 	oblue = 1 - (h2 * rblue * 5) / 255;	
-// 	ogreen = 1 - (h3 * rgreen * 5) / 255;	
+// 	ored = 1 - (h1 * rred * 5) / 255;
+// 	oblue = 1 - (h2 * rblue * 5) / 255;
+// 	ogreen = 1 - (h3 * rgreen * 5) / 255;
 
 	h1 = (red - position.x);
 	h2 = (green - position.y);

@@ -36,8 +36,14 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 								core->magnet.y,
 								core->magnet.z);
 	}
+	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+		core->launchKernelsResetShape(MAKESPHERE_KERNEL);
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
-		core->launchKernelsReset();
+		core->launchKernelsResetShape(MAKECUBE_KERNEL);
+	if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		core->launchKernelReset();
+	if (key == GLFW_KEY_E && action == GLFW_PRESS)
+		core->emitterActive = !core->emitterActive;
 	if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
 	{
 		core->particleSize += core->particleSizeInc;
@@ -140,26 +146,60 @@ Core::setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lo
 }
 
 cl_int
+Core::getOpenCLInfo(void)
+{
+	static int const	size = 2048;
+	char				buffer[size];
+	cl_int				err;
+
+	err = clGetPlatformInfo(platformID, CL_PLATFORM_VERSION, size, buffer, 0);
+	if (err != CL_SUCCESS)
+		std::cerr << "Failed to retrieve platform version!" << std::endl;
+	else
+		std::cerr << "VERSION: " << buffer << std::endl;
+	err = clGetPlatformInfo(platformID, CL_PLATFORM_NAME, size, buffer, 0);
+	if (err != CL_SUCCESS)
+		std::cerr << "Failed to retrieve platform name!" << std::endl;
+	else
+		std::cerr << buffer << std::endl;
+	err = clGetPlatformInfo(platformID, CL_PLATFORM_VENDOR, size, buffer, 0);
+	if (err != CL_SUCCESS)
+		std::cerr << "Failed to retrieve platform vendor!" << std::endl;
+	else
+		std::cerr << buffer << std::endl;
+	err = clGetPlatformInfo(platformID, CL_PLATFORM_EXTENSIONS, size, buffer, 0);
+	if (err != CL_SUCCESS)
+		std::cerr << "Failed to retrieve platform extensions!" << std::endl;
+	else
+		std::cerr << buffer << std::endl;
+	return (CL_SUCCESS);
+}
+
+cl_int
 Core::initOpencl(void)
 {
 	int							err;
 	int							i;
 	size_t						len;
 	char						buffer[2048];
-	static char const			*options = "-I./inc -Werror -cl-fast-relaxed-math";
+	static char const			*options = "-I./inc -I./kernels -Werror -cl-fast-relaxed-math";
 	static char const			*programNames[N_PROGRAM] =
 	{
 		"acceleration",
 		"update",
 		"makeCube",
-		"makeSphere"
+		"makeSphere",
+		"reset",
+		"sprayEmitter"
 	};
 	static char const			*kernelFiles[N_PROGRAM] =
 	{
 		"./kernels/acceleration.cl",
 		"./kernels/update.cl",
 		"./kernels/makeCube.cl",
-		"./kernels/makeSphere.cl"
+		"./kernels/makeSphere.cl",
+		"./kernels/reset.cl",
+		"./kernels/sprayEmitter.cl"
 	};
 	std::string					file_content;
 	char						*file_string;
@@ -195,21 +235,16 @@ Core::initOpencl(void)
 		0
 	};
 #endif
-
 	clContext = clCreateContext(props, 1, &clDeviceId, 0, 0, &err);
 	if (!clContext || err != CL_SUCCESS)
 		return (printError("Error: Failed to create a compute context !", EXIT_FAILURE));
-
 	clCommands = clCreateCommandQueue(clContext, clDeviceId, 0, &err);
 	if (!clCommands || err != CL_SUCCESS)
 		return (printError("Error: Failed to create a command queue !", EXIT_FAILURE));
-
 	for (i = 0; i < N_PROGRAM; ++i)
 	{
 		file_content = getFileContents(kernelFiles[i]);
-		// std::cerr << file_content << std::endl;
 		file_string = (char *)file_content.c_str();
-
 		clPrograms[i] = clCreateProgramWithSource(clContext, 1, (char const **)&file_string, 0, &err);
 		if (!clPrograms[i] || err != CL_SUCCESS)
 		{
@@ -219,7 +254,6 @@ Core::initOpencl(void)
 								<< " program !",
 								EXIT_FAILURE));
 		}
-
 		err = clBuildProgram(clPrograms[i], 0, 0, options, 0, 0);
 		if (err != CL_SUCCESS)
 		{
@@ -228,21 +262,21 @@ Core::initOpencl(void)
 			std::cerr << buffer << std::endl;
 			return (EXIT_FAILURE);
 		}
-
 		clKernels[i] = clCreateKernel(clPrograms[i], programNames[i], &err);
 		if (!clKernels[i] || err != CL_SUCCESS)
 			return (printError("Error: Failed to create compute kernel !", EXIT_FAILURE));
 		err = clGetKernelWorkGroupInfo(clKernels[i], clDeviceId, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local[i], NULL);
 		if (err != CL_SUCCESS)
 			return (printError(std::ostringstream().flush() << "Error: Failed to retrieve kernel work group info! " << err, EXIT_FAILURE));
-		std::cerr << "Local workgroup size for " << programNames[i] << " kernel: " << local[i] << std::endl;
+		// std::cerr << "Local workgroup size for " << programNames[i] << " kernel: " << local[i] << std::endl;
 	}
-	std::cerr << "Global workgroup size: " << global << std::endl;
+	emitter_global = local[SPRAY_EMITTER_KERNEL];
+	// std::cerr << "Global workgroup size: " << global << std::endl;
 	return (CL_SUCCESS);
 }
 
 cl_int
-Core::launchKernelsReset(void)
+Core::launchKernelsResetShape(int kernel)
 {
 	cl_int		err;
 	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
@@ -250,34 +284,79 @@ Core::launchKernelsReset(void)
 	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
-	err = clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 0, sizeof(cl_mem), &dp);
-	err |= clSetKernelArg(clKernels[MAKESPHERE_KERNEL], 1, sizeof(int), &m);
+	err = clSetKernelArg(clKernels[kernel], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[kernel], 1, sizeof(int), &m);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
-	err = clEnqueueNDRangeKernel(clCommands, clKernels[MAKESPHERE_KERNEL], 1, 0, &global, &local[MAKESPHERE_KERNEL], 0, 0, 0);
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[kernel], 1, 0, &global, &local[kernel], 0, 0, 0);
 	if (err != CL_SUCCESS)
-		return (printError("Error: Failed to launch acceleration kernel !", EXIT_FAILURE));
+		return (printError("Error: Failed to launch reset shape kernel !", EXIT_FAILURE));
 	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
 	clFinish(clCommands);
 	return (CL_SUCCESS);
+}
 
+cl_int
+Core::launchKernelReset(void)
+{
+	cl_int		err;
+
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
+	err = clSetKernelArg(clKernels[RESET_KERNEL], 0, sizeof(cl_mem), &dp);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[RESET_KERNEL], 1, 0, &global, &local[RESET_KERNEL], 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to launch reset kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
+	clFinish(clCommands);
+	emitter_global = local[SPRAY_EMITTER_KERNEL];
+	return (CL_SUCCESS);
+}
+
+cl_int
+Core::launchKernelSprayEmitter(void)
+{
+	cl_int			err;
+	Vec3<float>		emitter(0.0f, 0.0f, 0.0f);
+
+	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
+	err = clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 0, sizeof(cl_mem), &dp);
+	err |= clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 1, sizeof(float) * 3, &emitter);
+	err |= clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 2, sizeof(float) * 3, &magnet);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
+	err = clEnqueueNDRangeKernel(clCommands, clKernels[SPRAY_EMITTER_KERNEL], 1, 0, &emitter_global, &local[SPRAY_EMITTER_KERNEL], 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to launch reset kernel !", EXIT_FAILURE));
+	err = clEnqueueReleaseGLObjects(clCommands, 1, &dp, 0, 0, 0);
+	if (err != CL_SUCCESS)
+		return (printError("Error: Failed to release GL Objects !", EXIT_FAILURE));
+	clFinish(clCommands);
+	if (emitter_global < global)
+		emitter_global += local[SPRAY_EMITTER_KERNEL] * 3;
+	return (CL_SUCCESS);
 }
 
 cl_int
 Core::launchKernelsAcceleration(int const &state, Vec3<float> const &pos)
 {
 	cl_int			err;
-	
+
 	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[ACCELERATION_KERNEL], 0, sizeof(cl_mem), &dp);
 	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 1, sizeof(int), &state);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float), &pos.x);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 3, sizeof(float), &pos.y);
-	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 4, sizeof(float), &pos.z);
+	err |= clSetKernelArg(clKernels[ACCELERATION_KERNEL], 2, sizeof(float) * 3, &pos);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[ACCELERATION_KERNEL], 1, 0, &global, &local[ACCELERATION_KERNEL], 0, 0, 0);
@@ -341,7 +420,10 @@ Core::cleanDeviceMemory(void)
 void
 Core::getLocations(void)
 {
+	// attribute variables
 	positionLoc = glGetAttribLocation(this->program, "position");
+	lifeLoc = glGetAttribLocation(this->program, "life");
+	// uniform variables
 	redLoc = glGetUniformLocation(this->program, "red");
 	greenLoc = glGetUniformLocation(this->program, "green");
 	blueLoc = glGetUniformLocation(this->program, "blue");
@@ -352,6 +434,7 @@ Core::getLocations(void)
 	viewLoc = glGetUniformLocation(this->program, "view_matrix");
 	colorLoc = glGetUniformLocation(this->program, "frag_color");
 	objLoc = glGetUniformLocation(this->program, "obj_matrix");
+	emitterActiveLoc = glGetUniformLocation(this->program, "emitterActive");
 }
 
 GLuint
@@ -367,8 +450,6 @@ Core::loadTexture(char const *filename)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	checkGlError(__FILE__, __LINE__);
@@ -459,10 +540,10 @@ Core::initParticles(void)
 	GLint			bsize;
 	cl_int			err;
 
-	std::cerr << glGetString(GL_VENDOR) << std::endl;
-	std::cerr << glGetString(GL_RENDERER) << std::endl;
-	std::cerr << glGetString(GL_VERSION) << std::endl;
-	std::cerr << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+	// std::cerr << glGetString(GL_VENDOR) << std::endl;
+	// std::cerr << glGetString(GL_RENDERER) << std::endl;
+	// std::cerr << glGetString(GL_VERSION) << std::endl;
+	// std::cerr << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 	// OPENGL VAO/VBO INITIALISATION
 #ifndef __APPLE__
 	if (glDebugMessageControlARB != NULL)
@@ -479,20 +560,21 @@ Core::initParticles(void)
 	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, 0, GL_STATIC_DRAW);
 	glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bsize);
-	std::cerr << "VBO size: " << bsize << std::endl;
+	// std::cerr << "VBO size: " << bsize << std::endl;
 	glEnableVertexAttribArray(positionLoc);
 	glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)0);
-	std::cerr << "--- 1 --- " << std::endl;
+	glEnableVertexAttribArray(lifeLoc);
+	glVertexAttribPointer(lifeLoc, 1, GL_FLOAT, GL_FALSE, sizeof(t_particle), (void *)(sizeof(float) * 9));
 	// OPENCL INTEROPERABILITY
-	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
-	std::cerr << "--- 2 ---" << std::endl;
-	if (err != CL_SUCCESS)
-		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-	launchKernelsReset();
+	dp = clCreateFromGLBuffer(clContext, CL_MEM_READ_WRITE, pVbo, &err);
+	if (err != CL_SUCCESS)
+		return (printError("Failed creating memory from GL buffer !", EXIT_FAILURE));
+	launchKernelsResetShape(MAKESPHERE_KERNEL);
 	// texture
 	checkGlError(__FILE__, __LINE__);
+	emitterActive = false;
 	return (CL_SUCCESS);
 }
 
@@ -608,7 +690,12 @@ Core::update(void)
 	else if (gravity == 1)
 		launchKernelsAcceleration(1, gravityPos);
 	else
-		launchKernelsUpdate();
+	{
+		if (emitterActive)
+			launchKernelSprayEmitter();
+		else
+			launchKernelsUpdate();
+	}
 }
 
 void
@@ -617,6 +704,7 @@ Core::render(void)
 	float		ftime = glfwGetTime();
 
 	glUseProgram(program);
+	glUniform1f(emitterActiveLoc, float(emitterActive));
 	if (gravity)
 	{
 		glUniform1f(redLoc, (gravityPos.x));

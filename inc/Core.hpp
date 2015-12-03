@@ -6,15 +6,29 @@
 # include "Mat4Stack.hpp"
 # include "Utils.hpp"
 # include "Bmp.hpp"
-# include "kernel_particle.h"
 
 # define		ACCELERATION_KERNEL		0
 # define		UPDATE_KERNEL			1
 # define		MAKECUBE_KERNEL			2
 # define		MAKESPHERE_KERNEL		3
+# define		RESET_KERNEL			4
+# define		SPRAY_EMITTER_KERNEL	5
 
-# define		N_PROGRAM				4
-# define		PARTICLE_NUMBER			1024000
+# define		N_PROGRAM				6
+# define		PARTICLE_NUMBER			1024000 * 3
+
+typedef struct		s_particle
+{
+	float			pos[3];
+	float			vel[3];
+	float			acc[3];
+	float			life;
+}					t_particle;
+
+typedef struct		s_emitter
+{
+	float			pos[3];
+}					t_emitter;
 
 class Core
 {
@@ -24,6 +38,7 @@ public:
 	// OpenCL
 	size_t					local[N_PROGRAM];
 	size_t					global;
+	size_t					emitter_global;
 	cl_uint					num_entries;
 	cl_platform_id			platformID;
 	cl_uint					num_platforms;
@@ -65,6 +80,8 @@ public:
 	GLuint					rredLoc;
 	GLuint					rgreenLoc;
 	GLuint					rblueLoc;
+	GLuint					lifeLoc;
+	GLuint					emitterActiveLoc;
 
 	GLuint					pVao;
 	GLuint					pVbo;
@@ -76,6 +93,8 @@ public:
 	double					particleSizeInc;
 	double					particleSizeMin;
 	double					particleSizeMax;
+
+	bool					emitterActive;
 
 	Core(void);
 	~Core(void);
@@ -96,7 +115,7 @@ public:
 	GLuint					loadTexture(char const *filename);
 
 	/* magnet */
-	void					 moveMagnet(double xpos, double ypos);
+	void					moveMagnet(double xpos, double ypos);
 
 
 	/* matrices */ 
@@ -116,12 +135,14 @@ public:
 	int						initShaders(void);
 	/* OpenCL */
 	cl_int					initOpencl(void);
-	cl_int					launchKernelsReset(void);
+	cl_int					getOpenCLInfo(void);
+	cl_int					launchKernelsResetShape(int kernel);
+	cl_int					launchKernelSprayEmitter(void);
 	cl_int					launchKernelsAcceleration(int const &state, Vec3<float> const &pos);
 	cl_int					launchKernelsUpdate(void);
+	cl_int					launchKernelReset(void);
 	cl_int					initParticles();
 	cl_int					cleanDeviceMemory(void);
-/*	cl_int					writeDeviceParticles(void);*/
 
 	Core &					operator=(Core const &rhs);
 

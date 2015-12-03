@@ -5,6 +5,7 @@ __kernel void makeCube(__global t_particle *p, int const m)
 	int		i = get_global_id(0);
 	int x, y, z, w;
 	int		val;
+
 	x = 1 + i;
 	y = 1 + i;
 	z = 1 + i;
@@ -33,4 +34,5 @@ __kernel void makeCube(__global t_particle *p, int const m)
 	p[i].vel[0] = 0.0;
 	p[i].vel[1] = 0.0;
 	p[i].vel[2] = 0.0;
+	p[i].life = 1.0;
 }

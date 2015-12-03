@@ -1,5 +1,6 @@
 #include <kernel_particle.h>
 
+#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 __kernel void	makeSphere(__global t_particle *p, int const radius)
 {
 	int			i = get_global_id(0);
@@ -31,4 +32,5 @@ __kernel void	makeSphere(__global t_particle *p, int const radius)
 	p[i].vel[0] = 0.0;
 	p[i].vel[1] = 0.0;
 	p[i].vel[2] = 0.0;
+	p[i].life = 1.0;
 }
