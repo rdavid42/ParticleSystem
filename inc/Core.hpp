@@ -15,7 +15,7 @@
 # define		SPRAY_EMITTER_KERNEL	5
 
 # define		N_PROGRAM				6
-# define		PARTICLE_NUMBER			1024000 * 3
+# define		PARTICLE_NUMBER			1024000
 
 typedef struct		s_particle
 {

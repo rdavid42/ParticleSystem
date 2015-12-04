@@ -36,14 +36,17 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 								core->magnet.y,
 								core->magnet.z);
 	}
-	if (key == GLFW_KEY_1 && action == GLFW_PRESS)
+	if (key == GLFW_KEY_1 && action == GLFW_PRESS && !core->emitterActive)
 		core->launchKernelsResetShape(MAKESPHERE_KERNEL);
-	if (key == GLFW_KEY_2 && action == GLFW_PRESS)
+	if (key == GLFW_KEY_2 && action == GLFW_PRESS && !core->emitterActive)
 		core->launchKernelsResetShape(MAKECUBE_KERNEL);
 	if (key == GLFW_KEY_R && action == GLFW_PRESS)
 		core->launchKernelReset();
 	if (key == GLFW_KEY_E && action == GLFW_PRESS)
+	{
+		core->launchKernelReset();
 		core->emitterActive = !core->emitterActive;
+	}
 	if (key == GLFW_KEY_KP_ADD && action == GLFW_PRESS)
 	{
 		core->particleSize += core->particleSizeInc;
@@ -330,8 +333,8 @@ Core::launchKernelSprayEmitter(void)
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to acquire GL Objects !", EXIT_FAILURE));
 	err = clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 0, sizeof(cl_mem), &dp);
-	err |= clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 1, sizeof(float) * 3, &emitter);
-	err |= clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 2, sizeof(float) * 3, &magnet);
+	err |= clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 1, sizeof(cl_float) * 3, &emitter);
+	err |= clSetKernelArg(clKernels[SPRAY_EMITTER_KERNEL], 2, sizeof(cl_float) * 3, &magnet);
 	if (err != CL_SUCCESS)
 		return (printError("Error: Failed to set kernel arguments !", EXIT_FAILURE));
 	err = clEnqueueNDRangeKernel(clCommands, clKernels[SPRAY_EMITTER_KERNEL], 1, 0, &emitter_global, &local[SPRAY_EMITTER_KERNEL], 0, 0, 0);
@@ -681,18 +684,20 @@ Core::initShaders(void)
 void
 Core::update(void)
 {
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+	if (emitterActive)
 	{
-		if (gravity)
-			gravity = !gravity;
-		launchKernelsAcceleration(1, magnet);
+		launchKernelSprayEmitter();
 	}
-	else if (gravity == 1)
-		launchKernelsAcceleration(1, gravityPos);
 	else
 	{
-		if (emitterActive)
-			launchKernelSprayEmitter();
+		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		{
+			if (gravity)
+				gravity = !gravity;
+			launchKernelsAcceleration(1, magnet);
+		}
+		else if (gravity == 1)
+			launchKernelsAcceleration(1, gravityPos);
 		else
 			launchKernelsUpdate();
 	}

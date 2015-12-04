@@ -1,8 +1,7 @@
 
 #include <kernel_particle.h>
-#include <update.cl>
+#include <acceleration.cl>
 
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
 __kernel void sprayEmitter(__global t_particle *p, float3 const emitter, float3 const pointer)
 {
 	float		h;
@@ -33,5 +32,6 @@ __kernel void sprayEmitter(__global t_particle *p, float3 const emitter, float3 
 		p[i].acc[1] /= h;
 		p[i].acc[2] /= h;
 	}
+	p[i].life -= DECAY;
 	update(p);
 }

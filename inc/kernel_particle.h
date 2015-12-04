@@ -4,7 +4,7 @@
 // OPENCL HEADER
 
 # define ACC		(6.0)
-# define VEL_CAP	(3.0)
+# define VEL_CAP	(10.0)
 # define DECAY		(0.005)
 
 typedef struct		s_particle

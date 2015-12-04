@@ -7,7 +7,6 @@ __kernel void update(__global t_particle *p)
 
 	if (p[i].life > 0.0)
 	{
-		p[i].life -= DECAY;
 		p[i].vel[0] += p[i].acc[0];
 		p[i].vel[1] += p[i].acc[1];
 		p[i].vel[2] += p[i].acc[2];
