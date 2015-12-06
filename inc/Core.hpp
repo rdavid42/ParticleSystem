@@ -62,7 +62,6 @@ public:
 	/* matrices */
 	Mat4Stack<float>		ms;
 	Mat4<float>				projMatrix;
-	Mat4<float>				viewMatrix;
 
 	/* camera */
 	Vec3<float>				cameraPos;
@@ -118,10 +117,7 @@ public:
 	void					moveMagnet(double xpos, double ypos);
 
 
-	/* matrices */ 
-	void					setViewMatrix(Mat4<float> &view, Vec3<float> const &dir,
-										Vec3<float> const &right, Vec3<float> const &up);
-	void					setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lookAt);
+	/* matrices */
 	void					buildProjectionMatrix(Mat4<float> &proj, float const &fov,
 												float const &near, float const &far);
 

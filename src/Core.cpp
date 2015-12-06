@@ -96,58 +96,6 @@ Core::buildProjectionMatrix(Mat4<float> &proj, float const &fov,
 	proj[3 * 4 + 3] = 0.0f;
 }
 
-void
-Core::setViewMatrix(Mat4<float> &view, Vec3<float> const &dir,
-					Vec3<float> const &right, Vec3<float> const &up)
-{
-	/*
-	rx		ux		-dx		0
-	ry		uy		-dy		0
-	rz		uz		-dz		0
-	0		0		0		1
-	*/
-	// first column
-	view[0] = right.x;
-	view[4] = right.y;
-	view[8] = right.z;
-	view[12] = 0.0f;
-	// second column
-	view[1] = up.x;
-	view[5] = up.y;
-	view[9] = up.z;
-	view[13] = 0.0f;
-	// third column
-	view[2] = -dir.x;
-	view[6] = -dir.y;
-	view[10] = -dir.z;
-	view[14] = 0.0f;
-	// fourth column
-	view[3] = 0.0f;
-	view[7] = 0.0f;
-	view[11] = 0.0f;
-	view[15] = 1.0f;
-}
-
-void
-Core::setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lookAt)
-{
-	Vec3<float>		dir;
-	Vec3<float>		right;
-	Vec3<float>		up;
-	Mat4<float>		translation;
-
-	up.set(0.0f, 1.0f, 0.0f);
-	dir.set(lookAt - pos);
-	dir.normalize();
-	right.crossProduct(dir, up);
-	right.normalize();
-	up.crossProduct(right, dir);
-	up.normalize();
-	setViewMatrix(view, dir, right, up);
-	translation.setTranslation(-pos.x, -pos.y, -pos.z);
-	view.multiply(translation);
-}
-
 cl_int
 Core::getOpenCLInfo(void)
 {
@@ -679,6 +627,17 @@ Core::initShaders(void)
 	checkGlError(__FILE__, __LINE__);
 	deleteShaders();
 	return (1);
+}
+
+void
+Core::updateCamera(void)
+{
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+	{
+		cameraPos.set(0.0f, 0.0f, 200.0f);
+		cameraLookAt.set(0.0f, 0.0f, 0.0f);
+		setCamera(viewMatrix, cameraPos, cameraLookAt);
+	}
 }
 
 void
