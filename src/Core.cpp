@@ -40,6 +40,8 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 		core->launchKernelsResetShape(MAKESPHERE_KERNEL);
 	if (key == GLFW_KEY_2 && action == GLFW_PRESS && !core->emitterActive)
 		core->launchKernelsResetShape(MAKECUBE_KERNEL);
+	if (key == GLFW_KEY_3 && action == GLFW_PRESS && !core->emitterActive)
+		core->launchKernelsResetShape(MAKETORUS_KERNEL);
 	if (key == GLFW_KEY_R && action == GLFW_PRESS)
 		core->launchKernelReset();
 	if (key == GLFW_KEY_E && action == GLFW_PRESS)
@@ -193,7 +195,8 @@ Core::initOpencl(void)
 		"makeCube",
 		"makeSphere",
 		"reset",
-		"sprayEmitter"
+		"sprayEmitter",
+		"makeTorus"
 	};
 	static char const			*kernelFiles[N_PROGRAM] =
 	{
@@ -202,7 +205,8 @@ Core::initOpencl(void)
 		"./kernels/makeCube.cl",
 		"./kernels/makeSphere.cl",
 		"./kernels/reset.cl",
-		"./kernels/sprayEmitter.cl"
+		"./kernels/sprayEmitter.cl",
+		"./kernels/makeTorus.cl"
 	};
 	std::string					file_content;
 	char						*file_string;
@@ -697,7 +701,9 @@ Core::update(void)
 			launchKernelsAcceleration(1, magnet);
 		}
 		else if (gravity == 1)
+		{
 			launchKernelsAcceleration(1, gravityPos);
+		}
 		else
 			launchKernelsUpdate();
 	}
