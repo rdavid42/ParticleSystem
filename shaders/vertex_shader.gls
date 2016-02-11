@@ -27,6 +27,7 @@ void		main()
 	float h3;
 	float h;
 
+	//gl_Position = proj_matrix * view_matrix * obj_matrix * vec4(vec3(position.x + cos(time) * 50, position.y + sin(time) * 50, position.z + (cos(time) + sin(time)) * 50), 1);
 	gl_Position = proj_matrix * view_matrix * obj_matrix * vec4(position, 1.0);
 	fragLife = life;
 	fragEmitterActive = emitterActive;
@@ -61,5 +62,4 @@ void		main()
 	ored = 1 - (h * rred * 3) / 255;	
 	oblue = 1 - (h * rblue * 3) / 255;	
 	ogreen = 1 - (h * rgreen * 3) / 255;	
-
 }

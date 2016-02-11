@@ -11,9 +11,10 @@
 # define		MAKESPHERE_KERNEL		3
 # define		RESET_KERNEL			4
 # define		SPRAY_EMITTER_KERNEL	5
+# define		MAKETORUS_KERNEL		6
 
-# define		N_PROGRAM				6
-# define		PARTICLE_NUMBER			1024000
+# define		N_PROGRAM				7
+# define		PARTICLE_NUMBER			(1024000 * 3)
 
 typedef struct		s_particle
 {
@@ -80,7 +81,6 @@ public:
 	GLuint					rblueLoc;
 	GLuint					lifeLoc;
 	GLuint					emitterActiveLoc;
-
 	GLuint					pVao;
 	GLuint					pVbo;
 
