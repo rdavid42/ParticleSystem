@@ -680,13 +680,25 @@ Core::render(void)
 
 	glUseProgram(program);
 	glUniform1f(emitterActiveLoc, float(emitterActive));
-	if (gravity)
+	if (cameraActive && gravity)
+	{
+		glUniform1f(redLoc, (((camera.pos.x + gravityPos.x) / 2)));
+		glUniform1f(greenLoc,(((camera.pos.y + gravityPos.y) / 2)));
+		glUniform1f(blueLoc, (((camera.pos.z + gravityPos.z) / 2)));
+	}
+	else if (cameraActive && !gravity)
+	{
+		glUniform1f(redLoc, (((camera.pos.x + magnet.x) / 2)));
+		glUniform1f(greenLoc,(((camera.pos.y + magnet.y) / 2)));
+		glUniform1f(blueLoc, (((camera.pos.z + magnet.z) / 2)));
+	}
+	else if (gravity)
 	{
 		glUniform1f(redLoc, (gravityPos.x));
 		glUniform1f(greenLoc, (gravityPos.y));
 		glUniform1f(blueLoc, (gravityPos.z));
 	}
-	else
+	else 
 	{
 		glUniform1f(redLoc, (magnet.x));
 		glUniform1f(greenLoc, (magnet.y));
