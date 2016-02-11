@@ -2,10 +2,8 @@
 #ifndef CORE_HPP
 # define CORE_HPP
 
-# include "Mat4.hpp"
-# include "Mat4Stack.hpp"
 # include "Utils.hpp"
-# include "Bmp.hpp"
+# include "Camera.hpp"
 
 # define		ACCELERATION_KERNEL		0
 # define		UPDATE_KERNEL			1
@@ -34,6 +32,10 @@ class Core
 {
 public:
 	cl_mem					dp; // device particles
+
+	// camera particle plane
+	float					particlePlaneHeight;
+	float					particlePlaneWidth;
 
 	// OpenCL
 	size_t					local[N_PROGRAM];
@@ -64,10 +66,6 @@ public:
 	Mat4<float>				projMatrix;
 	Mat4<float>				viewMatrix;
 
-	/* camera */
-	Vec3<float>				cameraPos;
-	Vec3<float>				cameraLookAt;
-
 	/* Locations */
 	GLuint					projLoc;
 	GLuint					viewLoc;
@@ -96,6 +94,10 @@ public:
 
 	bool					emitterActive;
 
+	/* Camera */
+	Camera					camera;
+	bool					cameraActive;
+
 	Core(void);
 	~Core(void);
 
@@ -119,9 +121,6 @@ public:
 
 
 	/* matrices */ 
-	void					setViewMatrix(Mat4<float> &view, Vec3<float> const &dir,
-										Vec3<float> const &right, Vec3<float> const &up);
-	void					setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lookAt);
 	void					buildProjectionMatrix(Mat4<float> &proj, float const &fov,
 												float const &near, float const &far);
 

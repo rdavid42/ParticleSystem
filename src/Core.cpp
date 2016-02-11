@@ -61,23 +61,41 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 			core->particleSize = core->particleSizeMin;
 		glPointSize(core->particleSize);
 	}
+	if (key == GLFW_KEY_C && action == GLFW_PRESS)
+		core->cameraActive = !core->cameraActive;
 }
-
 
 static void
 cursor_pos_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	Core		*core = static_cast<Core *>(glfwGetWindowUserPointer(window));
-	
-	core->moveMagnet(xpos, ypos);
-}
 
+	core->moveMagnet(xpos, ypos);
+	if (core->cameraActive)
+	{
+		core->camera.vangle -= ((ypos - core->windowHeight / 2.0f) * 0.05);
+		if (core->camera.vangle > 89.0f)
+			core->camera.vangle = 89.0f;
+		if (core->camera.vangle < -89.0f)
+			core->camera.vangle = -89.0f;
+		core->camera.hangle += ((xpos - core->windowWidth / 2.0f) * 0.05);
+		core->camera.hangle = fmod(core->camera.hangle, 360);
+		glfwSetCursorPos(core->window, core->windowWidth / 2.0f, core->windowHeight / 2.0f);
+	}
+}
 
 void
 Core::moveMagnet(double xpos, double ypos)
 {
-	magnet.x =  ((xpos / windowWidth)  * cameraPos.z - cameraPos.z / 2); //100 = position Z caméra et 50 = position Z cam / 2
-	magnet.y = -((ypos / windowHeight) * cameraPos.z - cameraPos.z / 2);
+/*	magnet.x = camera.pos.x - 0.5 + ((xpos / windowWidth)  * camera.pos.z - camera.pos.z / 2.0f);
+	magnet.y = camera.pos.y - 0.5 + -((ypos / windowHeight) * camera.pos.z - camera.pos.z / 2.0f);
+	magnet.z = camera.pos.z + camera.forward.z * 200.0f;*/
+
+	(void)xpos;
+	(void)ypos;
+	magnet = camera.pos + camera.forward * 200.0f;
+	magnet += camera.right * ((xpos / windowWidth) * particlePlaneWidth);
+	magnet -= camera.up * (ypos / windowHeight) * particlePlaneHeight;
 }
 
 void
@@ -94,58 +112,6 @@ Core::buildProjectionMatrix(Mat4<float> &proj, float const &fov,
 	proj[3 * 4 + 2] = (2.0f * far * near) / (near - far);
 	proj[2 * 4 + 3] = -1.0f;
 	proj[3 * 4 + 3] = 0.0f;
-}
-
-void
-Core::setViewMatrix(Mat4<float> &view, Vec3<float> const &dir,
-					Vec3<float> const &right, Vec3<float> const &up)
-{
-	/*
-	rx		ux		-dx		0
-	ry		uy		-dy		0
-	rz		uz		-dz		0
-	0		0		0		1
-	*/
-	// first column
-	view[0] = right.x;
-	view[4] = right.y;
-	view[8] = right.z;
-	view[12] = 0.0f;
-	// second column
-	view[1] = up.x;
-	view[5] = up.y;
-	view[9] = up.z;
-	view[13] = 0.0f;
-	// third column
-	view[2] = -dir.x;
-	view[6] = -dir.y;
-	view[10] = -dir.z;
-	view[14] = 0.0f;
-	// fourth column
-	view[3] = 0.0f;
-	view[7] = 0.0f;
-	view[11] = 0.0f;
-	view[15] = 1.0f;
-}
-
-void
-Core::setCamera(Mat4<float> &view, Vec3<float> const &pos, Vec3<float> const &lookAt)
-{
-	Vec3<float>		dir;
-	Vec3<float>		right;
-	Vec3<float>		up;
-	Mat4<float>		translation;
-
-	up.set(0.0f, 1.0f, 0.0f);
-	dir.set(lookAt - pos);
-	dir.normalize();
-	right.crossProduct(dir, up);
-	right.normalize();
-	up.crossProduct(right, dir);
-	up.normalize();
-	setViewMatrix(view, dir, right, up);
-	translation.setTranslation(-pos.x, -pos.y, -pos.z);
-	view.multiply(translation);
 }
 
 cl_int
@@ -440,25 +406,6 @@ Core::getLocations(void)
 	emitterActiveLoc = glGetUniformLocation(this->program, "emitterActive");
 }
 
-GLuint
-Core::loadTexture(char const *filename)
-{
-	GLuint				texture;
-	Bmp					bmp;
-
-	if (!bmp.load(filename))
-		return (printError("Failed to load bmp !", 0));
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, bmp.width, bmp.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, bmp.data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	checkGlError(__FILE__, __LINE__);
-	return (texture);
-}
-
 void
 Core::magnetInit(void)
 {
@@ -492,8 +439,8 @@ int
 Core::init(void)
 {
 
-	windowWidth = 2560;
-	windowHeight = 1440;
+	windowWidth = 1920;
+	windowHeight = 1080;
 	if (!glfwInit())
 		return (0);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -501,8 +448,6 @@ Core::init(void)
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	window = glfwCreateWindow(windowWidth, windowHeight, "Particle System", NULL, NULL);
-// 	window = glfwCreateWindow(windowWidth, windowHeight,
-// 									"Particle System", glfwGetPrimaryMonitor(), NULL);
 	if (!window)
 	{
 		glfwTerminate();
@@ -513,13 +458,10 @@ Core::init(void)
 	glfwSwapInterval(1); // VSYNC 60 fps max
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_pos_callback);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	buildProjectionMatrix(projMatrix, 53.13f, 0.1f, 1000.0f);
-	cameraPos.set(0.0f, 0.0f, 200.0f);
-	// cameraPos.set(5.5f, 5.5f, 5.5f);
-	cameraLookAt.set(0.0f, 0.0f, 0.0f);
-	setCamera(viewMatrix, cameraPos, cameraLookAt);
 	if (initOpencl() == EXIT_FAILURE)
 		return (0);
 	if (!initShaders())
@@ -528,10 +470,14 @@ Core::init(void)
 	if (initParticles() != CL_SUCCESS)
 		return (0);
 	magnetInit();
+	camera.init();
+	cameraActive = false;
 	particleSize = 1.0;
 	particleSizeInc = 1.0;
 	particleSizeMin = 1.0;
 	particleSizeMax = 10.0;
+	particlePlaneHeight = 200.0f * static_cast<float>(tan(53.13f * (M_PI / 180.0f) * 0.5f));
+	particlePlaneWidth = particlePlaneHeight * (windowWidth * 1.0f / windowHeight);
 	glPointSize(particleSize);
 	gravity = 0;
 	return (1);
@@ -543,10 +489,10 @@ Core::initParticles(void)
 	GLint			bsize;
 	cl_int			err;
 
-	// std::cerr << glGetString(GL_VENDOR) << std::endl;
-	// std::cerr << glGetString(GL_RENDERER) << std::endl;
-	// std::cerr << glGetString(GL_VERSION) << std::endl;
-	// std::cerr << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+	std::cerr << glGetString(GL_VENDOR) << std::endl;
+	std::cerr << glGetString(GL_RENDERER) << std::endl;
+	std::cerr << glGetString(GL_VERSION) << std::endl;
+	std::cerr << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 	// OPENGL VAO/VBO INITIALISATION
 #ifndef __APPLE__
 	if (glDebugMessageControlARB != NULL)
@@ -684,22 +630,38 @@ Core::initShaders(void)
 void
 Core::update(void)
 {
-	if (emitterActive)
+	if (cameraActive)
 	{
-		launchKernelSprayEmitter();
+		glfwSetCursorPos(window, windowWidth / 2.0f, windowHeight / 2.0f);
+		camera.rotate();
+		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+			camera.moveForward();
+		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+			camera.moveBackward();
+		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+			camera.strafeLeft();
+		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+			camera.strafeRight();
 	}
 	else
 	{
-		if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+		if (emitterActive)
 		{
-			if (gravity)
-				gravity = !gravity;
-			launchKernelsAcceleration(1, magnet);
+			launchKernelSprayEmitter();
 		}
-		else if (gravity == 1)
-			launchKernelsAcceleration(1, gravityPos);
 		else
-			launchKernelsUpdate();
+		{
+			if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+			{
+				if (gravity)
+					gravity = !gravity;
+				launchKernelsAcceleration(1, magnet);
+			}
+			else if (gravity == 1)
+				launchKernelsAcceleration(1, gravityPos);
+			else
+				launchKernelsUpdate();
+		}
 	}
 }
 
@@ -726,7 +688,7 @@ Core::render(void)
  	glUniform1f(rgreenLoc, std::abs(-0.5 + cos(ftime * 0.6) * sin(ftime * 0.3)));
  	glUniform1f(rblueLoc, (std::abs(-0.5 + sin(ftime * 0.2))));
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projMatrix.val);
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewMatrix.val);
+	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, camera.view.val);
 	ms.push();
 		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
 		glBindVertexArray(pVao);
@@ -755,7 +717,7 @@ Core::loop(void)
 		glfwPollEvents();
 		if (currentTime - lastTime >= 1.0)
 		{
-			glfwSetWindowTitle(window, std::to_string(1000.0 / frames).c_str());
+			glfwSetWindowTitle(window, std::to_string(frames).c_str());
 			frames = 0.0;
 			lastTime += 1.0;
 		}
