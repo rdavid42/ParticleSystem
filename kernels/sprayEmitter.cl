@@ -27,7 +27,7 @@ __kernel void sprayEmitter(__global t_particle *p, float3 const emitter, float3 
 		p[i].acc[0] = (pointer[0] - emitter[0]) + cos((float)w) * 10.0;
 		p[i].acc[1] = (pointer[1] - emitter[1]) + sin((float)w) * 10.0;
 		p[i].acc[2] = (pointer[2] - emitter[2]) + tan((float)w) * 10.0;
-		h = sqrt(p[i].acc[0] * p[i].acc[0] + p[i].acc[1] * p[i].acc[1] + p[i].acc[2] * p[i].acc[2]) * tmp;
+		h = native_sqrt(p[i].acc[0] * p[i].acc[0] + p[i].acc[1] * p[i].acc[1] + p[i].acc[2] * p[i].acc[2]) * tmp;
 		p[i].acc[0] /= h;
 		p[i].acc[1] /= h;
 		p[i].acc[2] /= h;
