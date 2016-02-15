@@ -153,7 +153,7 @@ Core::initOpencl(void)
 	int							i;
 	size_t						len;
 	char						buffer[2048];
-	static char const			*options = "-I./inc -I./kernels -Werror -cl-fast-relaxed-math";
+	static char const			*options = "-I./inc -I./kernels -Werror -cl-fast-relaxed-math -cl-mad-enable -cl-no-signed-zeros -cl-finite-math-only";
 	static char const			*programNames[N_PROGRAM] =
 	{
 		"acceleration",

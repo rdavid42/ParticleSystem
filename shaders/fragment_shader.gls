@@ -1,10 +1,8 @@
 #version 410
 
-in float						ored;
-in float						ogreen;
-in float						oblue;
 in float						fragLife;
 in float						fragEmitterActive;
+in vec3							ocolor;
 
 out vec4						outputColor;
 
@@ -16,8 +14,8 @@ void main(void)
 		discard;
 	//outputColor = texture(tex, gl_PointCoord) * vec4(ored, ogreen, oblue, 1.0);
 	if (fragEmitterActive == 1.0f)
-		outputColor = vec4(ored, ogreen, oblue, 1.0) * fragLife;
+		outputColor = vec4(ocolor, 1.0) * fragLife;
 	else
-		outputColor = vec4(ored, ogreen, oblue, 1.0);
+		outputColor = vec4(ocolor, 1.0);
 	//outputColor = vec4((ored - position.x), (ogreen - position.y) , (oblue - position.x- position.y), 1.0);
 }
