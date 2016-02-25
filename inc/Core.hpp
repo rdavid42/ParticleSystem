@@ -87,6 +87,7 @@ public:
 	Vec3<float>				magnet;
 	Vec3<float>				gravityPos;
 	bool					gravity;
+	bool					line;
 	double					particleSize;
 	double					particleSizeInc;
 	double					particleSizeMin;

@@ -20,6 +20,8 @@ key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 	(void)scancode;
 	(void)mods;
 	(void)core;
+	if (key == GLFW_KEY_L && action == GLFW_PRESS)
+		core->line = !core->line;
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
@@ -475,6 +477,7 @@ Core::init(void)
 		return (0);
 	magnetInit();
 	camera.init();
+	line = false;
 	cameraActive = false;
 	particleSize = 1.0;
 	particleSizeInc = 1.0;
@@ -713,7 +716,10 @@ Core::render(void)
 		glUniformMatrix4fv(objLoc, 1, GL_FALSE, ms.top().val);
 		glBindVertexArray(pVao);
 		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-		glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
+		if (!line)
+			glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
+		else
+			glDrawArrays(GL_LINES, 0, PARTICLE_NUMBER / 2);
 	ms.pop();
 	checkGlError(__FILE__, __LINE__);
 }
