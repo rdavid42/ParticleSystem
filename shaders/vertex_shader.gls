@@ -51,7 +51,7 @@ void		main()
 // 	ored = 1 - (h1 * rred * 5) / 255;
 // 	oblue = 1 - (h2 * rblue * 5) / 255;
 // 	ogreen = 1 - (h3 * rgreen * 5) / 255;
-
+//
 	h = color - position;
 	c = length(h);
 	ocolor = 1 - (c * rcolor * 3) * 0.0039;	
