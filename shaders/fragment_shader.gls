@@ -14,8 +14,8 @@ void main(void)
 		discard;
 	//outputColor = texture(tex, gl_PointCoord) * vec4(ored, ogreen, oblue, 1.0);
 	if (fragEmitterActive == 1.0f)
-		outputColor = vec4(ocolor, 1.0) * fragLife;
+		outputColor = clamp(vec4(ocolor, 1.0) * fragLife, 0.3, 1.0);
 	else
-		outputColor = vec4(ocolor, 1.0);
+		outputColor = clamp(vec4(ocolor, 1.0), 0.1, 1.0);
 	//outputColor = vec4((ored - position.x), (ogreen - position.y) , (oblue - position.x- position.y), 1.0);
 }

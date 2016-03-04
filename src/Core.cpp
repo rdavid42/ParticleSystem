@@ -179,7 +179,7 @@ Core::initOpencl(void)
 	std::string					file_content;
 	char						*file_string;
 
-	global = PARTICLE_NUMBER;
+	global = this->pn;
 	num_entries = 1;
 	err = clGetPlatformIDs(num_entries, &platformID, &num_platforms);
 	if (err != CL_SUCCESS)
@@ -254,7 +254,7 @@ cl_int
 Core::launchKernelsResetShape(int kernel)
 {
 	cl_int		err;
-	int			m = int(std::cbrt(PARTICLE_NUMBER) / 2);
+	int			m = int(std::cbrt(this->pn) / 2);
 
 	err = clEnqueueAcquireGLObjects(clCommands, 1, &dp, 0, 0, 0);
 	if (err != CL_SUCCESS)
@@ -442,9 +442,10 @@ glErrorCallback(GLenum        source,
 }
 
 int
-Core::init(void)
+Core::init(int const &pn)
 {
-
+	this->pn = pn;
+	std::cerr << "Particle number set to: " << this->pn << std::endl;
 	windowWidth = 1920;
 	windowHeight = 1080;
 	if (!glfwInit())
@@ -514,7 +515,7 @@ Core::initParticles(void)
 	glBindVertexArray(pVao);
 	glGenBuffers(1, &pVbo);
 	glBindBuffer(GL_ARRAY_BUFFER, pVbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * PARTICLE_NUMBER, 0, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(t_particle) * this->pn, 0, GL_STATIC_DRAW);
 	glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bsize);
 	// std::cerr << "VBO size: " << bsize << std::endl;
 	glEnableVertexAttribArray(positionLoc);
@@ -717,9 +718,9 @@ Core::render(void)
 		glBindVertexArray(pVao);
 		glBindBuffer(GL_ARRAY_BUFFER, pVbo);
 		if (!line)
-			glDrawArrays(GL_POINTS, 0, PARTICLE_NUMBER);
+			glDrawArrays(GL_POINTS, 0, this->pn);
 		else
-			glDrawArrays(GL_LINES, 0, PARTICLE_NUMBER / 2);
+			glDrawArrays(GL_LINES, 0, this->pn / 2);
 	ms.pop();
 	checkGlError(__FILE__, __LINE__);
 }

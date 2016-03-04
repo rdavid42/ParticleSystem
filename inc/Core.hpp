@@ -14,7 +14,6 @@
 # define		MAKETORUS_KERNEL		6
 
 # define		N_PROGRAM				7
-# define		PARTICLE_NUMBER			(1024000 * 3)
 
 typedef struct		s_particle
 {
@@ -32,6 +31,7 @@ typedef struct		s_emitter
 class Core
 {
 public:
+	int						pn;
 	cl_mem					dp; // device particles
 
 	// camera particle plane
@@ -103,7 +103,7 @@ public:
 	~Core(void);
 
 	/* core */
-	int						init(void);
+	int						init(int const &pn);
 	void					magnetInit(void);
 	void					update(void);
 	void					render(void);
